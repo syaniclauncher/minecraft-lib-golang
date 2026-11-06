@@ -352,6 +352,7 @@ func runForgeProcessors(
 	}
 
 	opts.Progress.setMax(len(processors))
+	java := javaExecutable(opts, minecraftVersion, minecraftDirectory)
 	for count, processor := range processors {
 		opts.Progress.setStatus("Running processor " + processor.Jar)
 
@@ -368,7 +369,7 @@ func runForgeProcessors(
 			return err
 		}
 
-		command := []string{javaExecutable(opts), "-cp", classpath.String(), mainClass}
+		command := []string{java, "-cp", classpath.String(), mainClass}
 		for _, arg := range processor.Args {
 			value, ok := arguments[arg]
 			if !ok {
@@ -411,9 +412,21 @@ func runCommand(ctx context.Context, command []string, workingDirectory string) 
 }
 
 // javaExecutable returns the Java executable to use for an installer.
-func javaExecutable(opts InstallOptions) string {
+//
+// The runtime of the version is used, so the tools run with the same Java as
+// the game and no Java has to be installed on the machine. The Java of the
+// options wins over it.
+func javaExecutable(opts InstallOptions, minecraftVersion, minecraftDirectory string) string {
 	if opts.Java != "" {
 		return opts.Java
+	}
+
+	majorVersion := 8
+	if data, err := loadClientJSON(minecraftDirectory, minecraftVersion); err == nil && data.JavaVersion != nil {
+		majorVersion = data.JavaVersion.MajorVersion
+	}
+	if executable := TemurinExecutablePath(majorVersion, minecraftDirectory); executable != "" {
+		return executable
 	}
 	return "java"
 }

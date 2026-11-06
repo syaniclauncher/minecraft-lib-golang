@@ -190,6 +190,6 @@ func (l neoForgeModLoader) installNeoForge(ctx context.Context, minecraftVersion
 	}
 
 	opts.Progress.setStatus("Running installer")
-	command := []string{javaExecutable(opts), "-jar", installerPath, "--install-client", minecraftDirectory}
+	command := []string{javaExecutable(opts, minecraftVersion, minecraftDirectory), "-jar", installerPath, "--install-client", minecraftDirectory}
 	return runCommand(ctx, command, tempDir)
 }
