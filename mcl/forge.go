@@ -240,7 +240,7 @@ func (l forgeModLoader) installForge(ctx context.Context, minecraftVersion, load
 	}
 
 	if len(profile.Processors) > 0 {
-		if err := runForgeProcessors(ctx, profile, minecraftDirectory, tempDir, lzmaPath, installerPath, opts); err != nil {
+		if err := runForgeProcessors(ctx, profile, minecraftVersion, minecraftDirectory, tempDir, lzmaPath, installerPath, opts); err != nil {
 			return err
 		}
 	}
@@ -314,11 +314,11 @@ func writeForgeVersionJSON(reader *zip.ReadCloser, profile forgeInstallProfile, 
 func runForgeProcessors(
 	ctx context.Context,
 	profile forgeInstallProfile,
-	minecraftDirectory, tempDir, lzmaPath, installerPath string,
+	minecraftVersion, minecraftDirectory, tempDir, lzmaPath, installerPath string,
 	opts InstallOptions,
 ) error {
 	arguments := map[string]string{
-		"{MINECRAFT_JAR}": filepath.Join(minecraftDirectory, "versions", profile.Minecraft, profile.Minecraft+".jar"),
+		"{MINECRAFT_JAR}": filepath.Join(minecraftDirectory, "versions", minecraftVersion, minecraftVersion+".jar"),
 		"{INSTALLER}":     installerPath,
 		"{BINPATCH}":      lzmaPath,
 		"{ROOT}":          filepath.Join(tempDir, "root"),
