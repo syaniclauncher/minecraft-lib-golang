@@ -1,0 +1,162 @@
+package mcl
+
+import (
+	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestDownloadFile(t *testing.T) {
+	content := "hello minecraft"
+	sum := sha1.Sum([]byte(content))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(content))
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "nested", "file.txt")
+
+	downloaded, err := downloadFile(context.Background(), server.URL, target, hex.EncodeToString(sum[:]), dir, false, nil)
+	if err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	if !downloaded {
+		t.Error("the file should have been downloaded")
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != content {
+		t.Errorf("the file contains %q, want %q", data, content)
+	}
+}
+
+func TestDownloadFileSkipsExistingFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("the server should not be called")
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.txt")
+	writeFile(t, target, "content")
+
+	downloaded, err := downloadFile(context.Background(), server.URL, target, "", dir, false, nil)
+	if err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	if downloaded {
+		t.Error("the file should have been skipped")
+	}
+}
+
+func TestDownloadFileWithWrongChecksum(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.txt")
+
+	_, err := downloadFile(context.Background(), server.URL, target, strings.Repeat("0", 40), dir, false, nil)
+	if err == nil {
+		t.Fatal("downloadFile should fail on a wrong checksum")
+	}
+	var checksumError *InvalidChecksumError
+	if !errors.As(err, &checksumError) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if checksumError.Expected != strings.Repeat("0", 40) {
+		t.Errorf("the expected checksum is %q", checksumError.Expected)
+	}
+}
+
+func TestDownloadFileOutsideMinecraftDirectory(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("the server should not be called")
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "..", "outside.txt")
+
+	_, err := downloadFile(context.Background(), server.URL, target, "", dir, false, nil)
+	if err == nil {
+		t.Fatal("downloadFile should refuse to write outside of the directory")
+	}
+	var outsideError *FileOutsideMinecraftDirectoryError
+	if !errors.As(err, &outsideError) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDownloadFileReportsStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	var status string
+	progress := &Progress{Status: func(msg string) { status = msg }}
+
+	dir := t.TempDir()
+	if _, err := downloadFile(context.Background(), server.URL, filepath.Join(dir, "file.txt"), "", dir, false, progress); err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	if !strings.Contains(status, "file.txt") {
+		t.Errorf("the status is %q, want the name of the file", status)
+	}
+}
+
+func TestCheckPathInsideMinecraftDirectory(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := checkPathInsideMinecraftDirectory(dir, filepath.Join(dir, "file.txt")); err != nil {
+		t.Errorf("a file inside the directory should be allowed: %v", err)
+	}
+	if err := checkPathInsideMinecraftDirectory(dir, filepath.Join(dir, "a", "b", "file.txt")); err != nil {
+		t.Errorf("a nested file inside the directory should be allowed: %v", err)
+	}
+	if err := checkPathInsideMinecraftDirectory(dir, filepath.Join(dir, "..", "file.txt")); err == nil {
+		t.Error("a file outside of the directory should be refused")
+	}
+	if err := checkPathInsideMinecraftDirectory(dir, dir+"other"); err == nil {
+		t.Error("a sibling directory should be refused")
+	}
+}
+
+func TestRunParallel(t *testing.T) {
+	count := 0
+	err := runParallel(4, 20, func(i int) error {
+		count++
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("runParallel: %v", err)
+	}
+	if count != 20 {
+		t.Errorf("the function ran %d times, want 20", count)
+	}
+}
+
+func TestRunParallelReportsTheFirstError(t *testing.T) {
+	err := runParallel(2, 10, func(i int) error {
+		if i == 3 {
+			return os.ErrInvalid
+		}
+		return nil
+	})
+	if err == nil {
+		t.Fatal("runParallel should return the error")
+	}
+}
