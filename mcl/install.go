@@ -16,11 +16,11 @@ import (
 )
 
 // ResourcesURL is the server that hosts the assets of the game.
-const ResourcesURL = "https://resources.download.minecraft.net"
+var ResourcesURL = "https://resources.download.minecraft.net"
 
 // LibrariesURL is the default Maven repository the libraries are downloaded
 // from.
-const LibrariesURL = "https://libraries.minecraft.net"
+var LibrariesURL = "https://libraries.minecraft.net"
 
 // Install installs a Minecraft version into the given directory.
 //

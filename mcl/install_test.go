@@ -3,6 +3,8 @@ package mcl
 import (
 	"archive/zip"
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -195,5 +197,68 @@ func TestJarMainClass(t *testing.T) {
 	}
 	if mainClass != "net.example.Main" {
 		t.Errorf("the main class is %q", mainClass)
+	}
+}
+
+func TestInstallLibrariesAndAssets(t *testing.T) {
+	assetContent := "asset"
+	assetHash := sha1.Sum([]byte(assetContent))
+	assetHashHex := hex.EncodeToString(assetHash[:])
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/assets.json":
+			w.Write([]byte(`{"objects": {"minecraft/sounds/click": {"hash": "` + assetHashHex + `", "size": 5}}}`))
+		case "/resources/" + assetHashHex[:2] + "/" + assetHashHex:
+			w.Write([]byte(assetContent))
+		default:
+			w.Write([]byte("library"))
+		}
+	}))
+	defer server.Close()
+
+	originalResourcesURL := ResourcesURL
+	ResourcesURL = server.URL + "/resources"
+	defer func() { ResourcesURL = originalResourcesURL }()
+
+	dir := t.TempDir()
+	libraries := []Library{{
+		Name: "org.example:example:1.0",
+		URL:  server.URL,
+		Downloads: &LibraryDownloads{
+			Artifact: &LibraryArtifact{
+				Path: "org/example/artifact/1.0/artifact-1.0.jar",
+				URL:  server.URL + "/artifact",
+			},
+		},
+	}}
+
+	if err := installLibraries(context.Background(), "1.20.1", libraries, dir, nil); err != nil {
+		t.Fatalf("installLibraries: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join("libraries", "org", "example", "example", "1.0", "example-1.0.jar"),
+		filepath.Join("libraries", "org", "example", "artifact", "1.0", "artifact-1.0.jar"),
+	} {
+		if _, err := os.Stat(filepath.Join(dir, path)); err != nil {
+			t.Errorf("the file %s was not written: %v", path, err)
+		}
+	}
+
+	data := &ClientJSON{
+		Assets: "12",
+		AssetIndex: &AssetIndex{
+			ID:  "12",
+			URL: server.URL + "/assets.json",
+		},
+	}
+	if err := installAssets(context.Background(), data, dir, nil); err != nil {
+		t.Fatalf("installAssets: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "assets", "indexes", "12.json")); err != nil {
+		t.Errorf("the asset index was not written: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "assets", "objects", assetHashHex[:2], assetHashHex)); err != nil {
+		t.Errorf("the asset was not written: %v", err)
 	}
 }
