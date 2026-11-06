@@ -236,6 +236,12 @@ The `get_installer_url` method of the Python base class is public in Go as
     type. The Go library has `Options.ClientID` and `Options.AuthXUID` for
     them.
 
+14. **`mcl.Command` creates the directories.** The Python library only builds
+    the command and leaves the directories to the launcher. The Go library
+    creates the Minecraft directory and the game directory, because the game
+    writes its saves and its logs into the game directory and fails when it
+    is missing.
+
 ## Deprecated Python modules that are not ported
 
 The Python library still ships the modules `forge`, `fabric` and `quilt`,

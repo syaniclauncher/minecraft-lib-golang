@@ -14,8 +14,21 @@ import (
 // Token should be filled with the values of the signed in account, the other
 // options are optional.
 //
+// The Minecraft directory and the game directory are created when they do not
+// exist yet, because the game writes its saves and its logs into the game
+// directory.
+//
 // See the documentation of Options for a description of every field.
 func Command(version, minecraftDirectory string, opts Options) ([]string, error) {
+	// The game directory has to exist when the game starts.
+	gameDirectory := defaultString(opts.GameDirectory, minecraftDirectory)
+	if err := os.MkdirAll(minecraftDirectory, 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(gameDirectory, 0o755); err != nil {
+		return nil, err
+	}
+
 	versionDir := filepath.Join(minecraftDirectory, "versions", version)
 	if info, err := os.Stat(versionDir); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("%w: %s", ErrVersionNotFound, version)

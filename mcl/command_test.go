@@ -1,6 +1,7 @@
 package mcl
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,6 +90,44 @@ func TestCommand(t *testing.T) {
 	}
 	if !strings.HasSuffix(classpath, filepath.Join("versions", "1.20.1", "1.20.1.jar")) {
 		t.Errorf("the jar of the version is missing from the classpath: %s", classpath)
+	}
+}
+
+func TestCommandCreatesDirectories(t *testing.T) {
+	dir := testMinecraftDirectory(t)
+	gameDir := filepath.Join(t.TempDir(), "game_dir")
+
+	if _, err := Command("1.20.1", dir, Options{Username: "Player", GameDirectory: gameDir}); err != nil {
+		t.Fatalf("Command: %v", err)
+	}
+
+	info, err := os.Stat(gameDir)
+	if err != nil {
+		t.Fatalf("the game directory was not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatal("the game directory is not a directory")
+	}
+}
+
+func TestCommandCreatesMinecraftDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "minecraft")
+	writeFile(t, filepath.Join(dir, "versions", "1.20.1", "1.20.1.json"), `{
+		"id": "1.20.1",
+		"type": "release",
+		"mainClass": "net.minecraft.client.main.Main"
+	}`)
+
+	if _, err := Command("1.20.1", dir, Options{Username: "Player"}); err != nil {
+		t.Fatalf("Command: %v", err)
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("the Minecraft directory was not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatal("the Minecraft directory is not a directory")
 	}
 }
 

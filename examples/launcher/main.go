@@ -82,12 +82,10 @@ func main() {
 		minecraftDirectory: filepath.Join(base, "launcher_files"),
 		gameDirectory:      filepath.Join(base, "game_dir"),
 	}
-	// The game directory has to exist before the game starts, NeoForge
-	// writes its files into it.
+	// The launcher keeps its files in the Minecraft directory. The game
+	// directory is created by mcl.Command, because the game writes its
+	// saves and its logs into it.
 	if err := os.MkdirAll(l.minecraftDirectory, 0o755); err != nil {
-		log.Fatal(err)
-	}
-	if err := l.ensureGameDirectory(); err != nil {
 		log.Fatal(err)
 	}
 

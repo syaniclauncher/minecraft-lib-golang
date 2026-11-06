@@ -137,13 +137,6 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 	}
 	fmt.Println("launching:", strings.Join(command, " "))
 
-	// The game writes its saves and its logs into the game directory, so it
-	// has to exist when the game starts. It can be gone by then, because
-	// somebody deleted it while the launcher was open.
-	if err := l.ensureGameDirectory(); err != nil {
-		return err
-	}
-
 	game := exec.Command(command[0], command[1:]...)
 	game.Dir = l.gameDirectory
 	game.Stdout = os.Stdout
@@ -152,11 +145,6 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 		return fmt.Errorf("start the game: %w", err)
 	}
 	return nil
-}
-
-// ensureGameDirectory creates the directory the game runs in.
-func (l *launcher) ensureGameDirectory() error {
-	return os.MkdirAll(l.gameDirectory, 0o755)
 }
 
 // isInstalled reports whether a version is already in the Minecraft

@@ -54,6 +54,10 @@ directory of a version is:
 C:\Users\user\AppData\Roaming\.minecraft\versions\1.21\natives
 ```
 
+`mcl.Command` creates the Minecraft directory and the game directory when they
+do not exist yet. The game writes its saves and its logs into the game
+directory, so it has to be there when the game starts.
+
 ## The window
 
 | Field | Meaning |

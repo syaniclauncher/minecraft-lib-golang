@@ -204,4 +204,6 @@ if err := cmd.Run(); err != nil {
 ```
 
 The working directory of the game decides where it writes its logs and its
-save games, so it is usually the game directory.
+save games, so it is usually the game directory. `mcl.Command` creates the
+Minecraft directory and the game directory when they do not exist yet, so the
+game finds its working directory.

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -19,28 +17,5 @@ func TestOfflineUUID(t *testing.T) {
 		if got := offlineUUID(username); got != want {
 			t.Errorf("offlineUUID(%q) = %q, want %q", username, got, want)
 		}
-	}
-}
-
-// The game writes its saves into the game directory, so it has to exist when
-// the game starts. It can be gone by then, because somebody deleted it while
-// the launcher was open.
-func TestEnsureGameDirectory(t *testing.T) {
-	l := &launcher{gameDirectory: filepath.Join(t.TempDir(), "game_dir")}
-
-	if err := l.ensureGameDirectory(); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(l.gameDirectory)
-	if err != nil {
-		t.Fatalf("the game directory was not created: %v", err)
-	}
-	if !info.IsDir() {
-		t.Fatal("the game directory is not a directory")
-	}
-
-	// Calling it again is fine, the directory is already there.
-	if err := l.ensureGameDirectory(); err != nil {
-		t.Fatal(err)
 	}
 }
