@@ -321,13 +321,7 @@ func runForgeProcessors(
 	minecraftVersion, minecraftDirectory, tempDir, lzmaPath, installerPath string,
 	opts InstallOptions,
 ) error {
-	arguments := map[string]string{
-		"{MINECRAFT_JAR}": filepath.Join(minecraftDirectory, "versions", minecraftVersion, minecraftVersion+".jar"),
-		"{INSTALLER}":     installerPath,
-		"{BINPATCH}":      lzmaPath,
-		"{ROOT}":          filepath.Join(tempDir, "root"),
-		"{SIDE}":          "client",
-	}
+	arguments := map[string]string{}
 	for key, value := range profile.Data {
 		client := value.Client
 		if strings.HasPrefix(client, "[") && strings.HasSuffix(client, "]") {
@@ -336,18 +330,29 @@ func runForgeProcessors(
 		}
 		arguments["{"+key+"}"] = client
 	}
+	// The placeholders of the installer win over the ones of the install
+	// profile. The profile names the binary patch by its place inside the
+	// installer, but the processor needs the path on the disk.
+	arguments["{MINECRAFT_JAR}"] = filepath.Join(minecraftDirectory, "versions", minecraftVersion, minecraftVersion+".jar")
+	arguments["{INSTALLER}"] = installerPath
+	arguments["{BINPATCH}"] = lzmaPath
+	arguments["{ROOT}"] = filepath.Join(tempDir, "root")
+	arguments["{SIDE}"] = "client"
 
 	rootPath := filepath.Join(tempDir, "root")
 	if err := os.MkdirAll(rootPath, 0o755); err != nil {
 		return err
 	}
 
-	opts.Progress.setMax(len(profile.Processors))
-	for count, processor := range profile.Processors {
-		if len(processor.Sides) > 0 && !containsString(processor.Sides, "client") {
-			continue
+	var processors []forgeProcessor
+	for _, processor := range profile.Processors {
+		if len(processor.Sides) == 0 || containsString(processor.Sides, "client") {
+			processors = append(processors, processor)
 		}
+	}
 
+	opts.Progress.setMax(len(processors))
+	for count, processor := range processors {
 		opts.Progress.setStatus("Running processor " + processor.Jar)
 
 		var classpath strings.Builder
@@ -384,7 +389,7 @@ func runForgeProcessors(
 		if err := runCommand(ctx, command, rootPath); err != nil {
 			return err
 		}
-		opts.Progress.setDone(count)
+		opts.Progress.setDone(count + 1)
 	}
 	return nil
 }
