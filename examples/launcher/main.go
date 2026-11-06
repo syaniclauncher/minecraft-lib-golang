@@ -35,6 +35,8 @@ import (
 
 const appID = "com.syaniclauncher.examples.launcher"
 
+var BuildNumber string = "dev"
+
 // loaderNames are the entries of the mod loader selector.
 var loaderNames = []string{"Vanilla", "Snapshots", "Forge", "NeoForge", "Fabric", "Quilt", "Custom"}
 
@@ -96,7 +98,7 @@ func main() {
 // build fills the window with the widgets.
 func (l *launcher) build() {
 	l.application = app.NewWithID(appID)
-	l.window = l.application.NewWindow("SyanicLauncher Core Tester")
+	l.window = l.application.NewWindow("SyanicLauncher Core Tester " + BuildNumber)
 	l.window.Resize(fyne.NewSize(480, 360))
 
 	l.username = widget.NewEntry()
