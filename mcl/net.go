@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -185,7 +186,7 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 		}
 		if err := downloadOnce(ctx, url, tmpPath); err != nil {
 			lastErr = err
-			if attempt < 3 {
+			if attempt < 3 && isRetryable(err) {
 				select {
 				case <-ctx.Done():
 					return false, ctx.Err()
@@ -246,10 +247,11 @@ func downloadOnce(ctx context.Context, url, tmpPath string) error {
 			resume = 0
 		}
 	default:
-		if canRetryStatus(resp.StatusCode) {
-			return fmt.Errorf("GET %s: %s", url, resp.Status)
+		return &HTTPError{
+			URL:       url,
+			Status:    resp.Status,
+			Retryable: canRetryStatus(resp.StatusCode),
 		}
-		return fmt.Errorf("GET %s: %s", url, resp.Status)
 	}
 
 	flags := os.O_CREATE | os.O_WRONLY
@@ -277,6 +279,16 @@ func canRetryStatus(status int) bool {
 		return true
 	}
 	return status >= 500 && status < 600
+}
+
+// isRetryable reports whether a failed request is worth another try. Network
+// errors always are, an error status only when the server says so.
+func isRetryable(err error) bool {
+	var httpError *HTTPError
+	if errors.As(err, &httpError) {
+		return httpError.Retryable
+	}
+	return true
 }
 
 // downloadBackoff returns the delay before the n-th retry.

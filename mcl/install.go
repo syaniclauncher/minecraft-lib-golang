@@ -189,7 +189,12 @@ func installLibrary(ctx context.Context, versionID string, lib Library, minecraf
 	if artifact := lib.Downloads.Artifact; artifact != nil && artifact.URL != "" && artifact.Path != "" {
 		target := filepath.Join(minecraftDirectory, "libraries", filepath.FromSlash(artifact.Path))
 		if _, err := downloadFile(ctx, artifact.URL, target, artifact.SHA1, minecraftDirectory, false, progress); err != nil {
-			return err
+			var httpError *HTTPError
+			if !errors.As(err, &httpError) {
+				return err
+			}
+			// Some libraries are not available at every address.
+			// The game may still work without them.
 		}
 	}
 

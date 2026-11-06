@@ -22,7 +22,6 @@
 
 ## Open tasks
 
-- [ ] Example programs under `examples/` that use the library.
 - [ ] A test that runs the installer against the real Mojang servers. It
       needs network access and is therefore not part of `go test ./...`.
 - [ ] Benchmark the download of a version against the Python implementation.

@@ -160,3 +160,97 @@ func TestRunParallelReportsTheFirstError(t *testing.T) {
 		t.Fatal("runParallel should return the error")
 	}
 }
+
+func TestDownloadFileFailsOnErrorStatus(t *testing.T) {
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	_, err := downloadFile(context.Background(), server.URL, filepath.Join(dir, "file.txt"), "", dir, false, nil)
+	if err == nil {
+		t.Fatal("downloadFile should fail on a 404")
+	}
+	var httpError *HTTPError
+	if !errors.As(err, &httpError) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if httpError.Retryable {
+		t.Error("a 404 should not be retried")
+	}
+	if requests != 1 {
+		t.Errorf("the server was called %d times, want 1", requests)
+	}
+}
+
+func TestDownloadFileRetriesServerErrors(t *testing.T) {
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	downloaded, err := downloadFile(context.Background(), server.URL, filepath.Join(dir, "file.txt"), "", dir, false, nil)
+	if err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	if !downloaded {
+		t.Error("the file should have been downloaded")
+	}
+	if requests != 3 {
+		t.Errorf("the server was called %d times, want 3", requests)
+	}
+}
+
+func TestDownloadFileResumes(t *testing.T) {
+	content := "the whole content"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") == "bytes=4-" {
+			w.WriteHeader(http.StatusPartialContent)
+			w.Write([]byte(content[4:]))
+			return
+		}
+		w.Write([]byte(content))
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.txt")
+	writeFile(t, target+".download", content[:4])
+
+	if _, err := downloadFile(context.Background(), server.URL, target, "", dir, false, nil); err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != content {
+		t.Errorf("the file contains %q, want %q", data, content)
+	}
+}
+
+func TestDownloadFileHonoursTheContext(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	dir := t.TempDir()
+	_, err := downloadFile(ctx, server.URL, filepath.Join(dir, "file.txt"), "", dir, false, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("the error is %v, want a cancelled context", err)
+	}
+}

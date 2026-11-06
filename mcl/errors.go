@@ -67,6 +67,20 @@ func (e *FileOutsideMinecraftDirectoryError) Error() string {
 	return "tried to place " + e.Path + " outside " + e.MinecraftDirectory
 }
 
+// HTTPError is returned when a request fails with an error status.
+type HTTPError struct {
+	// URL is the address that was requested.
+	URL string
+	// Status is the status the server answered with.
+	Status string
+	// Retryable reports whether the request is worth another try.
+	Retryable bool
+}
+
+func (e *HTTPError) Error() string {
+	return "GET " + e.URL + ": " + e.Status
+}
+
 // ExternalProgramError is returned when an external program (the Forge or
 // NeoForge installer) exits with a failure.
 type ExternalProgramError struct {
