@@ -11,7 +11,7 @@ import minecraft_launcher_lib
 ```
 
 ```go
-import "github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+import "github.com/syaniclauncher/minecraft-lib-golang/mcl"
 ```
 
 Everything lives in the package `mcl`, so there is a single import.

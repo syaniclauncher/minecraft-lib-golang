@@ -1,4 +1,4 @@
-# minecraft-launcher-lib-go
+# minecraft-lib-golang
 
 A Go library for building a custom Minecraft launcher.
 
@@ -24,7 +24,7 @@ standard library.
 ## Installation
 
 ```bash
-go get github.com/syaniclauncher/minecraft-launcher-lib-go
+go get github.com/syaniclauncher/minecraft-lib-golang
 ```
 
 ## Quick start
@@ -38,7 +38,7 @@ import (
 	"log"
 	"os/exec"
 
-	"github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 func main() {

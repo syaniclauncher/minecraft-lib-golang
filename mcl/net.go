@@ -22,7 +22,7 @@ import (
 const Version = "1.0.0"
 
 // userAgent identifies this library to the servers it talks to.
-var userAgent = "minecraft-launcher-lib-go/" + Version
+var userAgent = "minecraft-lib-golang/" + Version
 
 // httpClient performs every network request of the library.
 var httpClient = &http.Client{

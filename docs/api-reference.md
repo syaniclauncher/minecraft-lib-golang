@@ -3,11 +3,11 @@
 Everything lives in one package:
 
 ```go
-import "github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+import "github.com/syaniclauncher/minecraft-lib-golang/mcl"
 ```
 
 The complete documentation of every exported symbol is on
-[pkg.go.dev](https://pkg.go.dev/github.com/syaniclauncher/minecraft-launcher-lib-go/mcl).
+[pkg.go.dev](https://pkg.go.dev/github.com/syaniclauncher/minecraft-lib-golang/mcl).
 This page is the map of the package.
 
 ## Versions

@@ -1,6 +1,6 @@
 # Introduction
 
-`minecraft-launcher-lib-go` is a Go library for building a custom Minecraft
+`minecraft-lib-golang` is a Go library for building a custom Minecraft
 launcher. It is a port of the Python library
 [minecraft-launcher-lib](https://github.com/syaniclauncher/minecraft-launcher-lib)
 and offers the same features through an idiomatic Go API.
@@ -26,7 +26,7 @@ and offers the same features through an idiomatic Go API.
 Everything lives in one package, `mcl`:
 
 ```go
-import "github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+import "github.com/syaniclauncher/minecraft-lib-golang/mcl"
 ```
 
 The package is split by topic, not by sub package, because the parts build on

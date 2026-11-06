@@ -169,7 +169,7 @@ func (l forgeModLoader) installForge(ctx context.Context, minecraftVersion, load
 	forgeVersion := minecraftVersion + "-" + loaderVersion
 	forgeVersionID := l.InstalledVersion(minecraftVersion, loaderVersion)
 
-	tempDir, err := os.MkdirTemp("", "minecraft-launcher-lib-go-")
+	tempDir, err := os.MkdirTemp("", "minecraft-lib-golang-")
 	if err != nil {
 		return err
 	}

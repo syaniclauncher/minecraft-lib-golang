@@ -1,10 +1,10 @@
-module github.com/syaniclauncher/minecraft-launcher-lib-go/examples/launcher
+module github.com/syaniclauncher/minecraft-lib-golang/examples/launcher
 
 go 1.27.1
 
 require (
 	fyne.io/fyne/v2 v2.7.1
-	github.com/syaniclauncher/minecraft-launcher-lib-go v0.0.0
+	github.com/syaniclauncher/minecraft-lib-golang v0.0.0
 )
 
 require (
@@ -44,4 +44,4 @@ require (
 
 // The library is not published yet, so the example uses the one in this
 // repository.
-replace github.com/syaniclauncher/minecraft-launcher-lib-go => ../..
+replace github.com/syaniclauncher/minecraft-lib-golang => ../..

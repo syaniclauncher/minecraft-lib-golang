@@ -4,7 +4,7 @@ The library is a normal Go module. It has no external dependencies, so
 `go.mod` stays clean.
 
 ```bash
-go get github.com/syaniclauncher/minecraft-launcher-lib-go
+go get github.com/syaniclauncher/minecraft-lib-golang
 ```
 
 ## Requirements
@@ -15,7 +15,7 @@ go get github.com/syaniclauncher/minecraft-launcher-lib-go
 ## The import
 
 ```go
-import "github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+import "github.com/syaniclauncher/minecraft-lib-golang/mcl"
 ```
 
 Everything is in the package `mcl`, so a single import is enough.
@@ -28,7 +28,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 func main() {

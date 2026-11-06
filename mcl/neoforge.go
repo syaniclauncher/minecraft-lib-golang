@@ -178,7 +178,7 @@ func (l neoForgeModLoader) installNeoForge(ctx context.Context, minecraftVersion
 		return err
 	}
 
-	tempDir, err := os.MkdirTemp("", "minecraft-launcher-lib-go-")
+	tempDir, err := os.MkdirTemp("", "minecraft-lib-golang-")
 	if err != nil {
 		return err
 	}

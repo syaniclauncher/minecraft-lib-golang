@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 // This example installs a Minecraft version and builds the command that

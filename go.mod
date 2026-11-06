@@ -1,3 +1,3 @@
-module github.com/syaniclauncher/minecraft-launcher-lib-go
+module github.com/syaniclauncher/minecraft-lib-golang
 
 go 1.24

@@ -9,7 +9,7 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 // versions holds the version lists that the window shows.

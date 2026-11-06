@@ -13,7 +13,7 @@ import (
 	"log"
 	"os/exec"
 
-	"github.com/syaniclauncher/minecraft-launcher-lib-go/mcl"
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 func main() {
