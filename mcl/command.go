@@ -98,7 +98,13 @@ func buildClasspath(data *ClientJSON, minecraftDirectory string) string {
 		if len(lib.Rules) > 0 && !ruleListAllows(lib.Rules, Options{}) {
 			continue
 		}
-		parts = append(parts, libraryPath(lib.Name, minecraftDirectory))
+		path := libraryPath(lib.Name, minecraftDirectory)
+		if path == "" {
+			// The name of the library is not a valid Maven
+			// coordinate, so there is no file for it.
+			continue
+		}
+		parts = append(parts, path)
 
 		native := nativeClassifier(lib)
 		if native == "" {
