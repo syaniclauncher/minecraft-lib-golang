@@ -193,8 +193,8 @@ func replaceArgument(value string, data *ClientJSON, minecraftDirectory string, 
 		{"${quickPlaySingleplayer}", defaultString(opts.QuickPlaySingleplayer, "{quickPlaySingleplayer}")},
 		{"${quickPlayMultiplayer}", defaultString(opts.QuickPlayMultiplayer, "{quickPlayMultiplayer}")},
 		{"${quickPlayRealms}", defaultString(opts.QuickPlayRealms, "{quickPlayRealms}")},
-		{"${clientid}", "0"},
-		{"${auth_xuid}", "0"},
+		{"${clientid}", defaultString(opts.ClientID, "0")},
+		{"${auth_xuid}", defaultString(opts.AuthXUID, "0")},
 	}
 	for _, replacement := range replacements {
 		value = strings.ReplaceAll(value, replacement.placeholder, replacement.value)

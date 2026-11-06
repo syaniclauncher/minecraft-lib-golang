@@ -28,6 +28,10 @@ type Options struct {
 	LauncherName string
 	// LauncherVersion is reported to the game as ${launcher_version}.
 	LauncherVersion string
+	// ClientID is reported to the game as ${clientid}. It defaults to "0".
+	ClientID string
+	// AuthXUID is reported to the game as ${auth_xuid}. It defaults to "0".
+	AuthXUID string
 
 	// GameDirectory is the working directory of the game. Defaults to the
 	// Minecraft directory.

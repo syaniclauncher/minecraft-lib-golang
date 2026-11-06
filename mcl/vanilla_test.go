@@ -156,12 +156,20 @@ func TestAddVanillaLauncherProfile(t *testing.T) {
 	if err := json.Unmarshal(data, &file); err != nil {
 		t.Fatalf("parse the profiles: %v", err)
 	}
-	if len(file.Profiles) != 3 {
-		t.Fatalf("got %d profiles, want 3", len(file.Profiles))
+	if len(file.Profiles.keys) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(file.Profiles.keys))
 	}
 
 	var added *vanillaProfileEntry
-	for _, entry := range file.Profiles {
+	for _, raw := range file.Profiles.values {
+		encoded, err := json.Marshal(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var entry vanillaProfileEntry
+		if err := json.Unmarshal(encoded, &entry); err != nil {
+			t.Fatal(err)
+		}
 		if entry.Name == "New" {
 			entry := entry
 			added = &entry
@@ -213,5 +221,78 @@ func TestEnsureVanillaLauncherProfiles(t *testing.T) {
 	}
 	if len(profiles) != 2 {
 		t.Errorf("got %d profiles, want 2", len(profiles))
+	}
+}
+
+func TestAddVanillaLauncherProfileKeepsTheOtherProfiles(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "launcher_profiles.json"), `{
+    "profiles": {
+        "first": {
+            "name": "First",
+            "type": "custom",
+            "created": "2024-01-01T00:00:00+00:00",
+            "lastUsed": "2024-01-02T00:00:00+00:00",
+            "lastVersionId": "1.20.1",
+            "icon": "ProfileName.png"
+        },
+        "second": {
+            "name": "Second",
+            "type": "custom",
+            "created": "2024-01-01T00:00:00+00:00",
+            "lastUsed": "2024-01-02T00:00:00+00:00",
+            "lastVersionId": "1.19.4"
+        }
+    },
+    "settings": {"language": "en_us"},
+    "version": 3
+}`)
+
+	profiles, err := LoadVanillaLauncherProfiles(dir)
+	if err != nil {
+		t.Fatalf("LoadVanillaLauncherProfiles: %v", err)
+	}
+	if len(profiles) != 2 || profiles[0].Name != "First" || profiles[1].Name != "Second" {
+		t.Fatalf("the profiles are %v, want them in the order of the file", profiles)
+	}
+
+	if err := AddVanillaLauncherProfile(dir, VanillaLauncherProfile{
+		Name:        "Third",
+		Version:     "1.21",
+		VersionType: VersionTypeCustom,
+	}); err != nil {
+		t.Fatalf("AddVanillaLauncherProfile: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "launcher_profiles.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := raw["profiles"].(map[string]any)
+	if len(entries) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(entries))
+	}
+	first := entries["first"].(map[string]any)
+	if first["icon"] != "ProfileName.png" {
+		t.Errorf("the icon of the first profile is %v, want it to be kept", first["icon"])
+	}
+	if raw["settings"].(map[string]any)["language"] != "en_us" {
+		t.Errorf("the settings are %v, want them to be kept", raw["settings"])
+	}
+
+	profiles, err = LoadVanillaLauncherProfiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(profiles))
+	}
+	if profiles[0].Name != "First" || profiles[2].Name != "Third" {
+		t.Errorf("the profiles are %v, want them in the order of the file", profiles)
 	}
 }

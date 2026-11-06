@@ -262,3 +262,22 @@ func TestInstallLibrariesAndAssets(t *testing.T) {
 		t.Errorf("the asset was not written: %v", err)
 	}
 }
+
+func TestInstallAssetsIgnoresBrokenHashes(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"objects": {"broken": {"hash": "a", "size": 1}, "empty": {"hash": "", "size": 0}}}`))
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	data := &ClientJSON{
+		Assets: "12",
+		AssetIndex: &AssetIndex{
+			ID:  "12",
+			URL: server.URL + "/assets.json",
+		},
+	}
+	if err := installAssets(context.Background(), data, dir, nil); err != nil {
+		t.Fatalf("installAssets: %v", err)
+	}
+}

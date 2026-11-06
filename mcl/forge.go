@@ -194,6 +194,8 @@ func (l forgeModLoader) installForge(ctx context.Context, minecraftVersion, load
 		minecraftVersion = profile.Minecraft
 	} else if profile.Install.Minecraft != "" {
 		minecraftVersion = profile.Install.Minecraft
+	} else {
+		return fmt.Errorf("the install profile of the installer does not name a Minecraft version")
 	}
 
 	if len(profile.Libraries) > 0 {
@@ -233,7 +235,9 @@ func (l forgeModLoader) installForge(ctx context.Context, minecraftVersion, load
 	}
 
 	lzmaPath := filepath.Join(tempDir, "client.lzma")
-	_ = extractFileFromZip(reader, "data/client.lzma", lzmaPath, minecraftDirectory)
+	// The patch file lives in the temporary directory, so it is not
+	// checked against the Minecraft directory.
+	_ = extractFileFromZip(reader, "data/client.lzma", lzmaPath, "")
 
 	if err := Install(ctx, forgeVersionID, minecraftDirectory, opts.Progress); err != nil {
 		return err
@@ -389,6 +393,7 @@ func runForgeProcessors(
 func runCommand(ctx context.Context, command []string, workingDirectory string) error {
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = workingDirectory
+	hideWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return &ExternalProgramError{
@@ -418,14 +423,17 @@ func containsString(list []string, value string) bool {
 	return false
 }
 
-// extractFileFromZip writes a single file of a zip archive to disk.
+// extractFileFromZip writes a single file of a zip archive to disk. The
+// target is checked against the Minecraft directory unless it is empty.
 func extractFileFromZip(reader *zip.ReadCloser, name, target, minecraftDirectory string) error {
 	for _, file := range reader.File {
 		if file.Name != name {
 			continue
 		}
-		if err := checkPathInsideMinecraftDirectory(minecraftDirectory, target); err != nil {
-			return err
+		if minecraftDirectory != "" {
+			if err := checkPathInsideMinecraftDirectory(minecraftDirectory, target); err != nil {
+				return err
+			}
 		}
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err

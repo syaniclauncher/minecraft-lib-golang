@@ -41,3 +41,10 @@
 - **The path guard uses `filepath.Rel` instead of a string prefix.** The
   Python library compares the strings, which lets a sibling directory with a
   common prefix pass. The Go library does it correctly.
+- **A failed download leaves a `.download` file behind.** The file holds the
+  part that was downloaded, so the next attempt continues where this one
+  stopped. It is removed when the download fails with an error that another
+  attempt cannot fix, like a missing file.
+- **The progress counts every library**, also the ones the rules of the
+  version exclude, so the progress reaches its maximum. The Python library
+  sets the maximum one below the number of libraries.

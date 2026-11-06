@@ -1,6 +1,7 @@
 package mcl
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,9 +14,72 @@ import (
 // vanillaProfilesFile is the launcher_profiles.json of the official
 // launcher.
 type vanillaProfilesFile struct {
-	Profiles map[string]vanillaProfileEntry `json:"profiles"`
-	Settings map[string]any                 `json:"settings"`
-	Version  int                            `json:"version"`
+	Profiles vanillaProfiles `json:"profiles"`
+	Settings map[string]any  `json:"settings"`
+	Version  int             `json:"version"`
+}
+
+// vanillaProfiles holds the profiles of the official launcher.
+//
+// It keeps the order of the file and the fields the library does not know,
+// so that adding a profile does not change the rest of the file.
+type vanillaProfiles struct {
+	keys   []string
+	values []map[string]any
+}
+
+// UnmarshalJSON reads the profiles in the order of the file.
+func (p *vanillaProfiles) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	if delimiter, ok := token.(json.Delim); !ok || delimiter != '{' {
+		return fmt.Errorf("the profiles are not a JSON object")
+	}
+
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return fmt.Errorf("the name of a profile is not a string")
+		}
+		var value map[string]any
+		if err := decoder.Decode(&value); err != nil {
+			return err
+		}
+		p.keys = append(p.keys, key)
+		p.values = append(p.values, value)
+	}
+	return nil
+}
+
+// MarshalJSON writes the profiles in the order they were read.
+func (p vanillaProfiles) MarshalJSON() ([]byte, error) {
+	var buffer bytes.Buffer
+	buffer.WriteByte('{')
+	for i, key := range p.keys {
+		if i > 0 {
+			buffer.WriteByte(',')
+		}
+		name, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(name)
+		buffer.WriteByte(':')
+		value, err := json.Marshal(p.values[i])
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(value)
+	}
+	buffer.WriteByte('}')
+	return buffer.Bytes(), nil
 }
 
 // vanillaProfileEntry is a single profile of the official launcher.
@@ -40,7 +104,16 @@ func LoadVanillaLauncherProfiles(minecraftDirectory string) ([]VanillaLauncherPr
 	}
 
 	var profiles []VanillaLauncherProfile
-	for _, entry := range data.Profiles {
+	for _, raw := range data.Profiles.values {
+		encoded, err := json.Marshal(raw)
+		if err != nil {
+			return nil, err
+		}
+		var entry vanillaProfileEntry
+		if err := json.Unmarshal(encoded, &entry); err != nil {
+			return nil, err
+		}
+
 		profile := VanillaLauncherProfile{
 			Name:             entry.Name,
 			GameDirectory:    entry.GameDir,
@@ -123,6 +196,8 @@ func VanillaLauncherProfileVersion(ctx context.Context, profile VanillaLauncherP
 }
 
 // AddVanillaLauncherProfile adds a profile to the official launcher.
+//
+// The profiles that are already there keep their fields and their order.
 func AddVanillaLauncherProfile(minecraftDirectory string, profile VanillaLauncherProfile) error {
 	if err := validateVanillaProfile(profile); err != nil {
 		return err
@@ -133,40 +208,46 @@ func AddVanillaLauncherProfile(minecraftDirectory string, profile VanillaLaunche
 		return err
 	}
 
-	entry := vanillaProfileEntry{
-		Name:    profile.Name,
-		Type:    VersionTypeCustom,
-		GameDir: profile.GameDirectory,
-		JavaDir: profile.JavaExecutable,
-	}
+	lastVersionID := profile.Version
 	switch profile.VersionType {
 	case VersionTypeLatestRelease:
-		entry.LastVersionID = VersionTypeLatestRelease
+		lastVersionID = VersionTypeLatestRelease
 	case VersionTypeLatestSnapshot:
-		entry.LastVersionID = VersionTypeLatestSnapshot
-	default:
-		entry.LastVersionID = profile.Version
-	}
-	if profile.JavaArguments != nil {
-		javaArgs := strings.Join(profile.JavaArguments, " ")
-		entry.JavaArgs = &javaArgs
-	}
-	if profile.CustomResolution != nil {
-		entry.Resolution = profile.CustomResolution
+		lastVersionID = VersionTypeLatestSnapshot
 	}
 
 	now := time.Now().Format(time.RFC3339)
-	entry.Created = now
-	entry.LastUsed = now
+	entry := map[string]any{
+		"name":          profile.Name,
+		"type":          VersionTypeCustom,
+		"created":       now,
+		"lastUsed":      now,
+		"lastVersionId": lastVersionID,
+	}
+	if profile.GameDirectory != "" {
+		entry["gameDir"] = profile.GameDirectory
+	}
+	if profile.JavaExecutable != "" {
+		entry["javaDir"] = profile.JavaExecutable
+	}
+	if profile.JavaArguments != nil {
+		entry["javaArgs"] = strings.Join(profile.JavaArguments, " ")
+	}
+	if profile.CustomResolution != nil {
+		entry["resolution"] = map[string]any{
+			"height": profile.CustomResolution.Height,
+			"width":  profile.CustomResolution.Width,
+		}
+	}
 
 	key := randomUUID()
 	for {
-		if _, exists := data.Profiles[key]; !exists {
+		if !data.Profiles.has(key) {
 			break
 		}
 		key = randomUUID()
 	}
-	data.Profiles[key] = entry
+	data.Profiles.add(key, entry)
 
 	return writeVanillaProfiles(minecraftDirectory, data)
 }
@@ -183,7 +264,6 @@ func VanillaLauncherProfilesExist(minecraftDirectory string) bool {
 // overwritten.
 func CreateEmptyVanillaLauncherProfiles(minecraftDirectory string) error {
 	return writeVanillaProfiles(minecraftDirectory, vanillaProfilesFile{
-		Profiles: map[string]vanillaProfileEntry{},
 		Settings: map[string]any{},
 		Version:  3,
 	})
@@ -196,6 +276,22 @@ func EnsureVanillaLauncherProfiles(minecraftDirectory string) error {
 		return nil
 	}
 	return CreateEmptyVanillaLauncherProfiles(minecraftDirectory)
+}
+
+// has reports whether a profile with the given name exists.
+func (p *vanillaProfiles) has(key string) bool {
+	for _, existing := range p.keys {
+		if existing == key {
+			return true
+		}
+	}
+	return false
+}
+
+// add appends a profile.
+func (p *vanillaProfiles) add(key string, value map[string]any) {
+	p.keys = append(p.keys, key)
+	p.values = append(p.values, value)
 }
 
 // validateVanillaProfile reports whether a profile of the official launcher
@@ -224,9 +320,6 @@ func readVanillaProfiles(minecraftDirectory string) (vanillaProfilesFile, error)
 	path := filepath.Join(minecraftDirectory, "launcher_profiles.json")
 	if err := readJSONFile(path, &data); err != nil {
 		return data, err
-	}
-	if data.Profiles == nil {
-		data.Profiles = map[string]vanillaProfileEntry{}
 	}
 	return data, nil
 }

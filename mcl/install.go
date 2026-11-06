@@ -127,18 +127,23 @@ func installLibraries(ctx context.Context, versionID string, libraries []Library
 
 	var mu sync.Mutex
 	done := 0
+	count := func() {
+		mu.Lock()
+		done++
+		mu.Unlock()
+		progress.setDone(done)
+	}
+
 	return runParallel(downloadWorkers(), len(libraries), func(i int) error {
 		lib := libraries[i]
 		if len(lib.Rules) > 0 && !ruleListAllows(lib.Rules, Options{}) {
+			count()
 			return nil
 		}
 		if err := installLibrary(ctx, versionID, lib, minecraftDirectory, progress); err != nil {
 			return err
 		}
-		mu.Lock()
-		done++
-		mu.Unlock()
-		progress.setDone(done)
+		count()
 		return nil
 	})
 }
@@ -245,7 +250,9 @@ func installAssets(ctx context.Context, data *ClientJSON, minecraftDirectory str
 	seen := map[string]bool{}
 	var hashes []string
 	for _, object := range index.Objects {
-		if object.Hash == "" || seen[object.Hash] {
+		// The hash is the name of the file and the first two
+		// characters are the directory it lives in.
+		if len(object.Hash) < 2 || seen[object.Hash] {
 			continue
 		}
 		seen[object.Hash] = true

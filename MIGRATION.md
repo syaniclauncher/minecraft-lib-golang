@@ -223,8 +223,18 @@ The `get_installer_url` method of the Python base class is public in Go as
     library only knows `windows`, `osx` and `linux` and ignores everything
     else, the Go library behaves the same way.
 
-11. **The optional files of a modpack are a list of paths**, the same as in
+11. **The operating system version is empty on macOS.** The Python library
+    returns the version of the kernel, but the rules of Minecraft never use
+    it on macOS, so the Go library returns an empty string. On Windows the
+    version is read from the registry, on Linux from `/proc`.
+
+12. **The optional files of a modpack are a list of paths**, the same as in
     the Python library.
+
+13. **`${clientid}` and `${auth_xuid}` are options.** The Python library reads
+    them from the options dictionary, even though they are not part of its
+    type. The Go library has `Options.ClientID` and `Options.AuthXUID` for
+    them.
 
 ## Deprecated Python modules that are not ported
 

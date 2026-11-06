@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -136,16 +137,16 @@ func TestCheckPathInsideMinecraftDirectory(t *testing.T) {
 }
 
 func TestRunParallel(t *testing.T) {
-	count := 0
+	var count atomic.Int64
 	err := runParallel(4, 20, func(i int) error {
-		count++
+		count.Add(1)
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("runParallel: %v", err)
 	}
-	if count != 20 {
-		t.Errorf("the function ran %d times, want 20", count)
+	if count.Load() != 20 {
+		t.Errorf("the function ran %d times, want 20", count.Load())
 	}
 }
 

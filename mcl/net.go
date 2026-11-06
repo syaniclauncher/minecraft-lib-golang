@@ -194,6 +194,11 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 				}
 				continue
 			}
+			if !isRetryable(err) {
+				// Another try would not help, so the partial file
+				// is removed.
+				os.Remove(tmpPath)
+			}
 			return false, lastErr
 		}
 
