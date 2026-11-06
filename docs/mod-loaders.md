@@ -111,6 +111,14 @@ installed, err := loader.Install(ctx, "1.20.1", directory, mcl.InstallOptions{
 })
 ```
 
+On Windows the Java executable of the installer is a Windows path:
+
+```go
+installed, err := loader.Install(ctx, "1.20.1", directory, mcl.InstallOptions{
+	Java: `C:\Program Files\Java\jdk-17\bin\java.exe`,
+})
+```
+
 ## How the version id is built
 
 | Mod loader | Version id |

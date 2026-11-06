@@ -99,6 +99,36 @@ options := mcl.Options{
 command, err := mcl.Command("1.21", directory, options)
 ```
 
+The paths are the ones of the platform the launcher runs on. On Windows the
+same options look like this, with the backslashes escaped in the JSON:
+
+```python
+options = {
+    "username": "Player",
+    "uuid": "00000000-0000-4000-8000-000000000000",
+    "token": "",
+    "executablePath": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe",
+    "jvmArguments": ["-Xmx2G"],
+    "gameDirectory": "C:\\Users\\user\\AppData\\Roaming\\.minecraft",
+}
+```
+
+```go
+options := mcl.Options{
+	Username:      "Player",
+	UUID:          "00000000-0000-4000-8000-000000000000",
+	Token:         "",
+	ExecutablePath: `C:\Program Files\Java\jdk-21\bin\java.exe`,
+	JVMArguments:  []string{"-Xmx2G"},
+	GameDirectory: `C:\Users\user\AppData\Roaming\.minecraft`,
+}
+```
+
+The game directory of the official launcher is in the roaming application
+data of the user on Windows, in `~/.minecraft` on Linux and in
+`~/Library/Application Support/minecraft` on macOS.
+`mcl.DefaultMinecraftDirectory` returns the right one for the platform.
+
 The names changed from `snake_case` to `PascalCase`, which is the Go
 convention for the fields of a struct.
 

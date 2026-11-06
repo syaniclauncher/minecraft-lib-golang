@@ -45,6 +45,15 @@ game needs, so it is the recommended default.
 | `GameDirectory` | The directory the game runs in. Defaults to the Minecraft directory. |
 | `NativesDirectory` | The directory with the extracted native libraries. Defaults to `<minecraft directory>/versions/<version>/natives`. |
 
+The library joins the parts of those directories with `filepath.Join`, so the
+separator is the one of the platform the launcher runs on. The natives
+directory of a version is:
+
+```text
+/home/user/.minecraft/versions/1.21/natives
+C:\Users\user\AppData\Roaming\.minecraft\versions\1.21\natives
+```
+
 ## The window
 
 | Field | Meaning |

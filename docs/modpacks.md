@@ -67,3 +67,11 @@ err := mcl.InstallMrpack(ctx, path, minecraftDirectory, "/home/user/games/modpac
 
 The files of the modpack are then in `/home/user/games/modpack` and the
 version of the modpack still lives in the Minecraft directory.
+
+On Windows the modpack directory is a Windows path:
+
+```go
+err := mcl.InstallMrpack(ctx, path, minecraftDirectory, `C:\Users\user\games\modpack`, mcl.MrpackInstallOptions{}, progress)
+```
+
+The files of the modpack are then in `C:\Users\user\games\modpack`.

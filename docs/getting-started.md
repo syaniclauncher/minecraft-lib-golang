@@ -93,6 +93,69 @@ if err := mcl.Install(ctx, "1.21", directory, nil); err != nil {
 }
 ```
 
+On Windows the same directory is:
+
+```go
+directory := `C:\Users\user\games\minecraft`
+```
+
+The library keeps everything inside that directory:
+
+```text
+/home/user/games/minecraft
+├── assets
+│   ├── indexes
+│   └── objects
+├── libraries
+├── runtime
+│   └── temurin-21
+│       └── linux
+│           └── jdk-21.0.3+7
+└── versions
+    └── 1.21
+        ├── 1.21.jar
+        ├── 1.21.json
+        └── natives
+```
+
+On Windows the layout is the same, only the separator and the name of the
+runtime folder differ:
+
+```text
+C:\Users\user\games\minecraft
+├── assets
+│   ├── indexes
+│   └── objects
+├── libraries
+├── runtime
+│   └── temurin-21
+│       └── windows-x64
+│           └── jdk-21.0.3+7
+└── versions
+    └── 1.21
+        ├── 1.21.jar
+        ├── 1.21.json
+        └── natives
+```
+
+The `natives` folder holds the native libraries of the game and the `runtime`
+folder the Java installations that were downloaded for it. The library builds
+every path with `filepath.Join`, so it always uses the separator of the
+platform it runs on. Do the same when you build a path of your own:
+
+```go
+import (
+	"os"
+	"path/filepath"
+)
+
+home, err := os.UserHomeDir()
+if err != nil {
+	log.Fatal(err)
+}
+directory := filepath.Join(home, "games", "minecraft")
+```
+
 ## 4. Choose the Java executable
 
 By default the game runs with the Java runtime that was installed next to the
@@ -108,8 +171,22 @@ command, err := mcl.Command("1.21", directory, mcl.Options{
 })
 ```
 
+On Windows the executable of a Java installation is `javaw.exe`, the variant
+that runs without a console window:
+
+```go
+command, err := mcl.Command("1.21", directory, mcl.Options{
+	Username:      "Player",
+	UUID:          "00000000-0000-4000-8000-000000000000",
+	ExecutablePath: `C:\Program Files\Java\jdk-21\bin\javaw.exe`,
+})
+```
+
 `DefaultExecutablePath` is used when `ExecutablePath` is empty and the version
-has no embedded runtime.
+has no embedded runtime. `mcl.DefaultJavaExecutable` returns the executable of
+the Java installation of the system, so a launcher that has no Java to pick
+from can use it as the `DefaultExecutablePath`. On Windows it is a
+`javaw.exe`, on Linux and macOS a `java`.
 
 ## 5. Start the game
 
