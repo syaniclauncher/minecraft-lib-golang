@@ -66,6 +66,26 @@ func main() {
 `mcl.Options` without a token starts the game in demo mode. Use the
 [`microsoft-login`](docs/microsoft-login.md) guide to obtain a real token.
 
+## Examples
+
+The [examples](examples) folder holds small programs that show how the library
+is used.
+
+| Example | What it does |
+| --- | --- |
+| [launch](examples/launch) | Installs a Minecraft version and starts it |
+| [login](examples/login) | Logs in with a Microsoft account |
+| [modloader](examples/modloader) | Installs a mod loader and prints the launch command |
+| [launcher](examples/launcher) | A desktop launcher with a window |
+
+The launcher is a module of its own, because a window needs a GUI toolkit.
+Run it from its own folder:
+
+```bash
+cd examples/launcher
+go run .
+```
+
 ## Documentation
 
 The documentation is an [mdBook](https://rust-lang.github.io/mdBook/) that
