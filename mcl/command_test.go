@@ -93,6 +93,42 @@ func TestCommand(t *testing.T) {
 	}
 }
 
+func TestOfflineUUID(t *testing.T) {
+	// The UUIDs are the ones the official launcher uses for a player that
+	// plays without an account.
+	tests := map[string]string{
+		"Player":  "a01e3843-e521-3998-958a-f459800e4d11",
+		"xsyanic": "6b7db67b-146b-3989-a0a3-1e6d51641e36",
+		"Notch":   "b50ad385-829d-3141-a216-7e7d7539ba7f",
+	}
+	for username, want := range tests {
+		if got := OfflineUUID(username); got != want {
+			t.Errorf("OfflineUUID(%q) = %q, want %q", username, got, want)
+		}
+	}
+}
+
+func TestCommandGeneratesUUID(t *testing.T) {
+	dir := testMinecraftDirectory(t)
+
+	command, err := Command("1.20.1", dir, Options{Username: "Player"})
+	if err != nil {
+		t.Fatalf("Command: %v", err)
+	}
+	if !strings.Contains(strings.Join(command, " "), "--uuid "+OfflineUUID("Player")) {
+		t.Errorf("the UUID is missing: %v", command)
+	}
+
+	// A UUID that is given is used as it is.
+	command, err = Command("1.20.1", dir, Options{Username: "Player", UUID: "1234"})
+	if err != nil {
+		t.Fatalf("Command: %v", err)
+	}
+	if !strings.Contains(strings.Join(command, " "), "--uuid 1234") {
+		t.Errorf("the UUID is missing: %v", command)
+	}
+}
+
 func TestCommandCreatesDirectories(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 	gameDir := filepath.Join(t.TempDir(), "game_dir")

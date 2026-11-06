@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
 	"os"
 	"os/exec"
@@ -129,7 +128,7 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 
 	command, err := mcl.Command(version, l.minecraftDirectory, mcl.Options{
 		Username:      username,
-		UUID:          offlineUUID(username),
+		UUID:          mcl.OfflineUUID(username),
 		GameDirectory: l.gameDirectory,
 	})
 	if err != nil {
@@ -181,14 +180,4 @@ func (l *launcher) newProgress() *mcl.Progress {
 			})
 		},
 	}
-}
-
-// offlineUUID returns the UUID of a player that plays without an account. It
-// is the version 3 UUID of the name with the prefix "OfflinePlayer:", the
-// same UUID the official launcher uses.
-func offlineUUID(username string) string {
-	sum := md5.Sum([]byte("OfflinePlayer:" + username))
-	sum[6] = (sum[6] & 0x0f) | 0x30 // the version
-	sum[8] = (sum[8] & 0x3f) | 0x80 // the variant
-	return fmt.Sprintf("%x-%x-%x-%x-%x", sum[0:4], sum[4:6], sum[6:8], sum[8:10], sum[10:16])
 }

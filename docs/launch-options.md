@@ -20,11 +20,19 @@ option that is not set.
 | Field | Meaning |
 | --- | --- |
 | `Username` | The name of the player in the game. |
-| `UUID` | The UUID of the player. |
+| `UUID` | The UUID of the player. An empty UUID is generated from the name, see `mcl.OfflineUUID`. |
 | `Token` | The Minecraft access token. An empty token starts the game in demo mode. |
 
 `mcl.TestOptions` returns options with a random name and a random UUID. They
 are meant for development only.
+
+`mcl.OfflineUUID` returns the UUID of a player that plays without an account:
+
+```go
+uuid := mcl.OfflineUUID("Player")
+```
+
+It is the same UUID the official launcher uses for such a player i.e. an MD5-based Version 3 UUID (RFC 4122 variant) of `OfflinePlayer:<username>`, used by Minecraft for offline-mode player identification.
 
 ## The Java executable
 

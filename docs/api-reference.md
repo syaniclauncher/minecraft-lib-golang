@@ -41,11 +41,14 @@ func VersionRuntimeInformation(version, minecraftDirectory string) (*VersionRunt
 
 ```go
 func Command(version, minecraftDirectory string, opts Options) ([]string, error)
+func OfflineUUID(username string) string
 func TestOptions() Options
 ```
 
 `Options` holds the name, the UUID and the token of the player and everything
 else the launcher configures. See [Launch options](launch-options.md).
+`OfflineUUID` returns the UUID of a player that plays without an account;
+`Command` uses it when the options hold no UUID.
 
 ## Mod loaders
 

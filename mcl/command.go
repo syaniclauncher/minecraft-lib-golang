@@ -1,6 +1,7 @@
 package mcl
 
 import (
+	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,11 +9,23 @@ import (
 	"strings"
 )
 
+// OfflineUUID returns the UUID of a player that plays without an account. It
+// is the version 3 UUID of the name with the prefix "OfflinePlayer:", the
+// same UUID the official launcher uses.
+//
+// mcl.Command uses it when the options hold no UUID.
+func OfflineUUID(username string) string {
+	sum := md5.Sum([]byte("OfflinePlayer:" + username))
+	sum[6] = (sum[6] & 0x0f) | 0x30 // the version
+	sum[8] = (sum[8] & 0x3f) | 0x80 // the variant
+	return fmt.Sprintf("%x-%x-%x-%x-%x", sum[0:4], sum[4:6], sum[6:8], sum[8:10], sum[10:16])
+}
+
 // Command returns the command line that launches the given Minecraft version.
 //
-// The returned slice can be handed to os/exec as is. Username, UUID and
-// Token should be filled with the values of the signed in account, the other
-// options are optional.
+// The returned slice can be handed to os/exec as is. Username and Token
+// should be filled with the values of the signed in account, the other
+// options are optional. An empty UUID is generated from the name.
 //
 // The Minecraft directory and the game directory are created when they do not
 // exist yet, because the game writes its saves and its logs into the game
@@ -41,6 +54,9 @@ func Command(version, minecraftDirectory string, opts Options) ([]string, error)
 
 	if opts.NativesDirectory == "" {
 		opts.NativesDirectory = filepath.Join(minecraftDirectory, "versions", data.ID, "natives")
+	}
+	if opts.UUID == "" {
+		opts.UUID = OfflineUUID(opts.Username)
 	}
 	classpath := buildClasspath(data, minecraftDirectory)
 

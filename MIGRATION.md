@@ -242,6 +242,11 @@ The `get_installer_url` method of the Python base class is public in Go as
     writes its saves and its logs into the game directory and fails when it
     is missing.
 
+15. **An empty UUID is generated.** The Python library leaves the placeholder
+    `{uuid}` in the command when the options hold no UUID. The Go library
+    generates the offline UUID of the name instead, the same UUID the
+    official launcher uses. `mcl.OfflineUUID` returns it.
+
 ## Deprecated Python modules that are not ported
 
 The Python library still ships the modules `forge`, `fabric` and `quilt`,

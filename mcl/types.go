@@ -10,7 +10,8 @@ import "time"
 type Options struct {
 	// Username is the in-game name of the player.
 	Username string
-	// UUID is the (dashed or undashed) UUID of the player.
+	// UUID is the (dashed or undashed) UUID of the player. An empty UUID is
+	// generated from the name, see OfflineUUID.
 	UUID string
 	// Token is the Minecraft access token.
 	Token string
