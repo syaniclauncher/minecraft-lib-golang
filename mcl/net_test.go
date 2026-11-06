@@ -119,6 +119,24 @@ func TestDownloadFileReportsStatus(t *testing.T) {
 	}
 }
 
+func TestDownloadFileReportsLabel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	var status string
+	progress := &Progress{Status: func(msg string) { status = msg }}
+
+	dir := t.TempDir()
+	if _, err := downloadFile(context.Background(), server.URL, filepath.Join(dir, "abc123"), "", dir, false, progress, "Assets"); err != nil {
+		t.Fatalf("downloadFile: %v", err)
+	}
+	if status != "Downloading Assets abc123" {
+		t.Errorf("the status is %q, want %q", status, "Downloading Assets abc123")
+	}
+}
+
 func TestCheckPathInsideMinecraftDirectory(t *testing.T) {
 	dir := t.TempDir()
 

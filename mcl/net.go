@@ -151,7 +151,10 @@ func postJSON(ctx context.Context, url string, body any, header http.Header, v a
 // left alone.
 //
 // The returned boolean reports whether the file was actually downloaded.
-func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory string, overwrite bool, progress *Progress) (bool, error) {
+//
+// The optional label names what is downloaded and is shown in the status
+// message, e.g. "Downloading Assets 1a2b3c".
+func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory string, overwrite bool, progress *Progress, label ...string) (bool, error) {
 	if minecraftDirectory != "" {
 		if err := checkPathInsideMinecraftDirectory(minecraftDirectory, path); err != nil {
 			return false, err
@@ -176,7 +179,11 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
 	}
-	progress.setStatus("Downloading " + filepath.Base(path))
+	name := filepath.Base(path)
+	if len(label) > 0 {
+		name = label[0] + " " + name
+	}
+	progress.setStatus("Downloading " + name)
 
 	tmpPath := path + ".download"
 	var lastErr error

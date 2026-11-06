@@ -238,7 +238,7 @@ func installAssets(ctx context.Context, data *ClientJSON, minecraftDirectory str
 
 	progress.setStatus("Downloading Assets")
 	indexPath := filepath.Join(minecraftDirectory, "assets", "indexes", data.Assets+".json")
-	if _, err := downloadFile(ctx, data.AssetIndex.URL, indexPath, data.AssetIndex.SHA1, minecraftDirectory, false, progress); err != nil {
+	if _, err := downloadFile(ctx, data.AssetIndex.URL, indexPath, data.AssetIndex.SHA1, minecraftDirectory, false, progress, "Assets"); err != nil {
 		return err
 	}
 
@@ -265,7 +265,7 @@ func installAssets(ctx context.Context, data *ClientJSON, minecraftDirectory str
 	return runParallel(downloadWorkers(), len(hashes), func(i int) error {
 		hash := hashes[i]
 		target := filepath.Join(minecraftDirectory, "assets", "objects", hash[:2], hash)
-		if _, err := downloadFile(ctx, ResourcesURL+"/"+hash[:2]+"/"+hash, target, hash, minecraftDirectory, false, progress); err != nil {
+		if _, err := downloadFile(ctx, ResourcesURL+"/"+hash[:2]+"/"+hash, target, hash, minecraftDirectory, false, progress, "Assets"); err != nil {
 			return err
 		}
 		mu.Lock()
