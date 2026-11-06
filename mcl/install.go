@@ -334,6 +334,11 @@ func extractZipFile(file *zip.File, extractPath string) error {
 	if err := checkPathInsideMinecraftDirectory(extractPath, target); err != nil {
 		return err
 	}
+	return writeZipFile(file, target)
+}
+
+// writeZipFile writes a single file of a zip archive to an exact path.
+func writeZipFile(file *zip.File, target string) error {
 	if file.FileInfo().IsDir() {
 		return os.MkdirAll(target, 0o755)
 	}

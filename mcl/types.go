@@ -87,8 +87,8 @@ type Latest struct {
 	Snapshot string
 }
 
-// JavaInformation describes a Java installation.
-type JavaInformation struct {
+// JavaInstallation describes a Java installation.
+type JavaInstallation struct {
 	// Path is the installation directory.
 	Path string
 	// Name is the base name of the installation directory.
