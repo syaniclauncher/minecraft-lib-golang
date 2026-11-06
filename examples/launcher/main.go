@@ -30,7 +30,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 const appID = "com.syaniclauncher.examples.launcher"
@@ -51,6 +56,9 @@ var loaderIDs = map[string]string{
 
 // launcher holds the window and the data behind it.
 type launcher struct {
+	// baseDirectory is the directory the launcher keeps its files in when no
+	// other folder is chosen.
+	baseDirectory string
 	// minecraftDirectory holds the versions, the libraries and the assets.
 	minecraftDirectory string
 	// gameDirectory is the working directory of the game. It is separate
@@ -64,12 +72,27 @@ type launcher struct {
 	application         fyne.App
 	window              fyne.Window
 	username            *widget.Entry
+	uuid                *widget.Entry
+	token               *widget.Entry
+	loaderFolder        *widget.Entry
+	minecraftFolder     *widget.Entry
 	loaderSelect        *widget.Select
 	minecraftSelect     *widget.Select
 	loaderVersionSelect *widget.Select
 	playButton          *widget.Button
 	progressBar         *widget.ProgressBar
 	status              *widget.Label
+	// consoleBox holds the console with a theme of its own.
+	consoleBox *container.ThemeOverride
+	// console shows the output of the game.
+	console *widget.Entry
+	// consoleText is the text of the console. It is kept here, because the
+	// console only shows the last lines of it.
+	consoleText string
+	// clearButton empties the console.
+	clearButton *widget.Button
+	// consoleButton shows and hides the console.
+	consoleButton *widget.Button
 }
 
 func main() {
@@ -81,6 +104,7 @@ func main() {
 		log.Fatal(err)
 	}
 	l := &launcher{
+		baseDirectory:      base,
 		minecraftDirectory: filepath.Join(base, "launcher_files"),
 		gameDirectory:      filepath.Join(base, "game_dir"),
 	}
@@ -99,10 +123,26 @@ func main() {
 func (l *launcher) build() {
 	l.application = app.NewWithID(appID)
 	l.window = l.application.NewWindow("SyanicLauncher Core Tester " + BuildNumber)
-	l.window.Resize(fyne.NewSize(480, 360))
+	l.window.Resize(fyne.NewSize(640, 480))
 
 	l.username = widget.NewEntry()
 	l.username.SetText("Player")
+
+	// The UUID and the token are optional. The game runs offline without
+	// them.
+	l.uuid = widget.NewEntry()
+	l.uuid.SetPlaceHolder("(optional)")
+	l.token = widget.NewEntry()
+	l.token.SetPlaceHolder("(optional)")
+
+	// The folders are optional too, the launcher keeps its files next to
+	// the working directory when they are empty.
+	l.loaderFolder = widget.NewEntry()
+	l.loaderFolder.SetPlaceHolder("/launcher_files")
+	l.loaderFolder.OnChanged = func(string) { l.foldersChanged() }
+	l.minecraftFolder = widget.NewEntry()
+	l.minecraftFolder.SetPlaceHolder("/game_dir")
+	l.minecraftFolder.OnChanged = func(string) { l.foldersChanged() }
 
 	l.loaderSelect = widget.NewSelect(loaderNames, func(string) { l.refreshMinecraftVersions() })
 	l.loaderSelect.SetSelected("Vanilla")
@@ -110,26 +150,161 @@ func (l *launcher) build() {
 	l.loaderVersionSelect = widget.NewSelect(nil, nil)
 	l.loaderVersionSelect.Disable()
 
-	l.playButton = widget.NewButton("Install & Play", l.play)
+	l.playButton = widget.NewButton("Launch Game", l.play)
 	l.playButton.Disable()
 
 	l.progressBar = widget.NewProgressBar()
+	// The bar is only shown while the game is launching.
+	l.progressBar.Hide()
+
 	l.status = widget.NewLabel("Loading the versions...")
 	l.status.Wrapping = fyne.TextWrapWord
 
+	// The console shows the output of the game. It is not editable, but it
+	// can be scrolled.
+	l.console = widget.NewMultiLineEntry()
+	l.console.TextStyle = fyne.TextStyle{Monospace: true}
+	l.console.Wrapping = fyne.TextWrapOff
+	l.console.Scroll = fyne.ScrollVerticalOnly
+	l.console.SetMinRowsVisible(6)
+	l.console.Disable()
+
+	l.clearButton = widget.NewButton("Clear", l.clearConsole)
+	l.consoleButton = widget.NewButton("Hide console", l.toggleConsole)
+
+	// The text of the console is a bit bigger than the text of the window.
+	l.consoleBox = container.NewThemeOverride(l.console, consoleTheme{Theme: l.application.Settings().Theme()})
+
 	form := widget.NewForm(
 		widget.NewFormItem("Username", l.username),
+		widget.NewFormItem("", widget.NewAccordion(
+			widget.NewAccordionItem("Advance User Options", container.New(layout.NewFormLayout(),
+				widget.NewLabel("UUID"), l.uuid,
+				widget.NewLabel("Token"), l.token,
+			)),
+		)),
 		widget.NewFormItem("Mod Loader", l.loaderSelect),
 		widget.NewFormItem("Minecraft Version", l.minecraftSelect),
 		widget.NewFormItem("Loader Version", l.loaderVersionSelect),
+		widget.NewFormItem("", widget.NewAccordion(
+			widget.NewAccordionItem("Advance Game Options", container.New(layout.NewFormLayout(),
+				widget.NewLabel("Launcher Folder"), l.folderRow(l.loaderFolder),
+				widget.NewLabel("Instance Folder"), l.folderRow(l.minecraftFolder),
+			)),
+		)),
 	)
 
-	l.window.SetContent(container.NewPadded(container.NewVBox(
-		form,
-		l.playButton,
-		l.progressBar,
-		l.status,
+	// The console fills the space that is left over.
+	l.window.SetContent(container.NewPadded(container.NewBorder(
+		container.NewVBox(
+			form,
+			l.playButton,
+			l.progressBar,
+			l.status,
+			container.NewHBox(l.clearButton, l.consoleButton),
+		),
+		nil, nil, nil,
+		l.consoleBox,
 	)))
+}
+
+// consoleTheme makes the text of the console a bit bigger.
+type consoleTheme struct {
+	fyne.Theme
+}
+
+// Size returns the size of the text of the console. The other sizes are the
+// ones of the theme of the window.
+func (t consoleTheme) Size(name fyne.ThemeSizeName) float32 {
+	if name == theme.SizeNameText {
+		return 10
+	}
+	return t.Theme.Size(name)
+}
+
+// folderRow returns the field of a folder with the buttons that choose and
+// reset it.
+func (l *launcher) folderRow(field *widget.Entry) fyne.CanvasObject {
+	buttons := container.NewHBox(
+		widget.NewButton("Select", func() { l.selectFolder(field) }),
+		widget.NewButton("Reset", func() { field.SetText("") }),
+	)
+	// The field fills the space that the buttons leave over.
+	return container.NewBorder(nil, nil, nil, buttons, field)
+}
+
+// selectFolder lets the user choose the folder of the entry.
+func (l *launcher) selectFolder(field *widget.Entry) {
+	dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		field.SetText(uri.Path())
+	}, l.window).Show()
+}
+
+// foldersChanged uses the folders of the window. Only the versions that are
+// installed depend on them, the other ones are the same everywhere.
+func (l *launcher) foldersChanged() {
+	l.minecraftDirectory = l.folder(l.loaderFolder.Text, "launcher_files")
+	l.gameDirectory = l.folder(l.minecraftFolder.Text, "game_dir")
+
+	if l.data == nil {
+		return
+	}
+	installed, err := mcl.InstalledVersions(l.minecraftDirectory)
+	if err != nil {
+		return
+	}
+	l.data.local = nil
+	for _, version := range installed {
+		l.data.local = append(l.data.local, version.ID)
+	}
+	if l.loaderSelect.Selected == "Custom" {
+		l.refreshMinecraftVersions()
+	}
+}
+
+// folder returns the folder of the entry. The default folder of the launcher
+// is used when the entry is empty.
+func (l *launcher) folder(path, defaultName string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return filepath.Join(l.baseDirectory, defaultName)
+	}
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(l.baseDirectory, path)
+}
+
+// clearConsole removes the lines from the console.
+func (l *launcher) clearConsole() {
+	l.consoleText = ""
+	l.console.SetText("")
+}
+
+// toggleConsole shows and hides the console.
+func (l *launcher) toggleConsole() {
+	if l.consoleBox.Visible() {
+		l.consoleBox.Hide()
+		l.consoleButton.SetText("Show console")
+		return
+	}
+	l.consoleBox.Show()
+	l.consoleButton.SetText("Hide console")
+}
+
+// appendConsole adds the lines to the console and scrolls to the newest one.
+func (l *launcher) appendConsole(lines []string) {
+	fyne.Do(func() {
+		l.consoleText += strings.Join(lines, "\n") + "\n"
+		l.console.SetText(l.consoleText)
+		// The cursor is on the last line, so the console scrolls down to it.
+		l.console.CursorRow = strings.Count(l.consoleText, "\n") - 1
+		l.console.CursorColumn = 0
+		l.console.Refresh()
+	})
 }
 
 // show shows the window and loads the versions in the background.
@@ -232,13 +407,18 @@ func (l *launcher) play() {
 	loaderVersion := l.loaderVersionSelect.Selected
 
 	l.playButton.Disable()
+	// The bar is only shown while the game is launching.
+	l.progressBar.Show()
 	l.progressBar.SetValue(0)
 	l.setStatus("Starting...")
+	// Every launch starts with an empty console.
+	l.clearConsole()
 
 	go func() {
 		err := l.installAndLaunch(username, loaderName, minecraftVersion, loaderVersion)
 		fyne.Do(func() {
 			l.playButton.Enable()
+			l.progressBar.Hide()
 			if err != nil {
 				l.setStatus("Failed: " + err.Error())
 				return

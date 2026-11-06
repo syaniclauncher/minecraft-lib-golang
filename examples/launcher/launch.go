@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 
@@ -126,9 +127,16 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 		}
 	}
 
+	// The UUID and the token are optional. The game runs offline when there
+	// is no token.
+	uuid := strings.TrimSpace(l.uuid.Text)
+	if uuid == "" {
+		uuid = mcl.OfflineUUID(username)
+	}
 	command, err := mcl.Command(version, l.minecraftDirectory, mcl.Options{
 		Username:      username,
-		UUID:          mcl.OfflineUUID(username),
+		UUID:          uuid,
+		Token:         strings.TrimSpace(l.token.Text),
 		GameDirectory: l.gameDirectory,
 	})
 	if err != nil {
@@ -136,14 +144,47 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 	}
 	fmt.Println("launching:", strings.Join(command, " "))
 
+	// The output of the game goes to the console of the window.
+	output := &consoleWriter{launcher: l}
 	game := exec.Command(command[0], command[1:]...)
 	game.Dir = l.gameDirectory
-	game.Stdout = os.Stdout
-	game.Stderr = os.Stderr
+	game.Stdout = output
+	game.Stderr = output
 	if err := game.Start(); err != nil {
 		return fmt.Errorf("start the game: %w", err)
 	}
 	return nil
+}
+
+// consoleWriter sends the output of the game to the console of the window.
+//
+// The output is split into lines, the last line is kept until it is
+// complete.
+type consoleWriter struct {
+	launcher *launcher
+	mutex    sync.Mutex
+	buffer   []byte
+}
+
+// Write adds the lines of the output to the console.
+func (w *consoleWriter) Write(data []byte) (int, error) {
+	w.mutex.Lock()
+	w.buffer = append(w.buffer, data...)
+	var lines []string
+	for {
+		index := bytes.IndexByte(w.buffer, '\n')
+		if index < 0 {
+			break
+		}
+		lines = append(lines, string(w.buffer[:index]))
+		w.buffer = w.buffer[index+1:]
+	}
+	w.mutex.Unlock()
+
+	if len(lines) > 0 {
+		w.launcher.appendConsole(lines)
+	}
+	return len(data), nil
 }
 
 // isInstalled reports whether a version is already in the Minecraft
