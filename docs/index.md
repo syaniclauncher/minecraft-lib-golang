@@ -1,4 +1,4 @@
-# Documentation
+# Introduction
 
 `minecraft-launcher-lib-go` is a Go library for building a custom Minecraft
 launcher. It is a port of the Python library
@@ -17,6 +17,7 @@ and offers the same features through an idiomatic Go API.
 | [Microsoft login](microsoft-login.md) | Authenticating an account |
 | [Modpacks](modpacks.md) | Installing a Modrinth modpack |
 | [Java installations](java.md) | Finding and inspecting Java |
+| [API reference](api-reference.md) | Every exported function, type and error |
 | [Migration guide](migration-guide.md) | Moving from the Python library |
 | [Troubleshooting](troubleshooting.md) | When something does not work |
 

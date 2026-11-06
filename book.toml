@@ -1,0 +1,22 @@
+[book]
+title = "minecraft-launcher-lib-go"
+authors = ["minecraft-launcher-lib-go contributors"]
+description = "A Go library for building a custom Minecraft launcher"
+language = "en"
+src = "docs"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+smart-punctuation = true
+git-repository-icon = "fab-github"
+git-repository-url = "https://github.com/syaniclauncher/minecraft-launcher-lib-go"
+edit-url-template = "https://github.com/syaniclauncher/minecraft-launcher-lib-go/edit/master/{path}"
+
+[output.html.search]
+enable = true
+limit-results = 30

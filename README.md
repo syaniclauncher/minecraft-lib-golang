@@ -68,18 +68,36 @@ func main() {
 
 ## Documentation
 
-The documentation lives in [docs](docs):
+The documentation is an [mdBook](https://rust-lang.github.io/mdBook/) that
+lives in [docs](docs). It is published to GitHub Pages by a workflow, so it
+can also be read in the browser without building it.
 
 | Guide | Topic |
 | --- | --- |
+| [Introduction](docs/index.md) | What the library does and how it is put together |
+| [Installation](docs/installation.md) | Adding the library to a project |
 | [Getting started](docs/getting-started.md) | Install a version and launch the game |
 | [Installation progress](docs/installation-progress.md) | Follow the progress of an installation |
 | [Launch options](docs/launch-options.md) | Every option of the launch command |
 | [Mod loaders](docs/mod-loaders.md) | Forge, NeoForge, Fabric and Quilt |
 | [Microsoft login](docs/microsoft-login.md) | Authenticate an account |
 | [Modpacks](docs/modpacks.md) | Install a Modrinth modpack |
+| [Java installations](docs/java.md) | Find and inspect Java |
+| [API reference](docs/api-reference.md) | Every exported function, type and error |
 | [Migration guide](docs/migration-guide.md) | Moving from the Python library |
 | [Troubleshooting](docs/troubleshooting.md) | When something does not work |
+
+To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/)
+and run:
+
+```bash
+mdbook serve      # a preview on http://localhost:3000
+mdbook build      # the result in the book directory
+```
+
+The workflow in `.github/workflows/docs.yml` builds the book and publishes it
+to GitHub Pages. It needs the pages of the repository to be enabled with the
+source "GitHub Actions".
 
 ## Project documents
 
