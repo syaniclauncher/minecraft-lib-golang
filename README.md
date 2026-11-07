@@ -95,12 +95,6 @@ lives in [docs](docs).
 
 You can read the docs from [here](https://syaniclauncher.github.io/minecraft-lib-golang/).
 
-## Project documents (used by Claude)
-
-- [ROADMAP.md](ROADMAP.md) — the implementation roadmap.
-- [MIGRATION.md](MIGRATION.md) — the feature mapping of the Python library.
-- [TODO.md](TODO.md) — open tasks and known limitations.
-
 ## License
 
 BSD 2-Clause
