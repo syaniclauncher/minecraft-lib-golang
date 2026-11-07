@@ -181,7 +181,7 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 	}
 	name := filepath.Base(path)
 	if len(label) > 0 {
-		name = label[0] + " " + name
+		name = label[0]
 	}
 	progress.setStatus("Downloading " + name)
 

@@ -99,7 +99,7 @@ func InstallJVMRuntime(ctx context.Context, majorVersion int, minecraftDirectory
 
 	// The archive is always fetched again, the checksum below makes sure
 	// that a broken download cannot slip through.
-	if _, err := downloadFile(ctx, pkg.Link, archivePath, "", minecraftDirectory, true, progress); err != nil {
+	if _, err := downloadFile(ctx, pkg.Link, archivePath, "", minecraftDirectory, true, progress, fmt.Sprintf("Temurin Java %d", majorVersion)); err != nil {
 		return err
 	}
 	checksum, err := sha256Hash(archivePath)
