@@ -213,6 +213,14 @@ func (l *launcher) newProgress() *mcl.Progress {
 		Status: func(message string) {
 			fyne.Do(func() { l.status.SetText(message) })
 		},
+		Download: func(name string, downloaded, total int64) {
+			message := fmt.Sprintf("Downloading %s (%.1f MB", name, float64(downloaded)/(1<<20))
+			if total > 0 {
+				message += fmt.Sprintf(" / %.1f MB", float64(total)/(1<<20))
+			}
+			message += ")"
+			fyne.Do(func() { l.status.SetText(message) })
+		},
 		Done: func(n int) {
 			fyne.Do(func() { l.progressBar.SetValue(float64(n)) })
 		},

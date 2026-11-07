@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
@@ -89,8 +90,20 @@ func TestInstall(t *testing.T) {
 	}`, server.URL, server.URL))
 	installJavaRuntime(t, dir, 8)
 
-	if err := mcl.Install(context.Background(), "1.20.1", dir, nil); err != nil {
+	var downloadedBytes, totalBytes atomic.Int64
+	progress := &mcl.Progress{
+		Download: func(name string, downloaded, total int64) {
+			if name == "artifact-1.0.jar" {
+				downloadedBytes.Store(downloaded)
+				totalBytes.Store(total)
+			}
+		},
+	}
+	if err := mcl.Install(context.Background(), "1.20.1", dir, progress); err != nil {
 		t.Fatalf("Install: %v", err)
+	}
+	if downloadedBytes.Load() != 7 || totalBytes.Load() != 7 {
+		t.Errorf("download progress for artifact-1.0.jar = [%d %d]; want [7 7]", downloadedBytes.Load(), totalBytes.Load())
 	}
 
 	for _, path := range []string{

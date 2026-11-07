@@ -175,6 +175,9 @@ type MrpackInstallOptions struct {
 type Progress struct {
 	// Status is called with a human readable status message.
 	Status func(msg string)
+	// Download is called as bytes are received. total is 0 when the server
+	// does not report the file size. Calls may happen concurrently.
+	Download func(name string, downloaded, total int64)
 	// Done is called with the number of finished steps.
 	Done func(n int)
 	// Max is called with the total number of steps.
@@ -184,6 +187,12 @@ type Progress struct {
 func (p *Progress) setStatus(msg string) {
 	if p != nil && p.Status != nil {
 		p.Status(msg)
+	}
+}
+
+func (p *Progress) setDownload(name string, downloaded, total int64) {
+	if p != nil && p.Download != nil {
+		p.Download(name, downloaded, total)
 	}
 }
 

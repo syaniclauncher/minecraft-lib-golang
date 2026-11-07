@@ -191,7 +191,7 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
-		if err := downloadOnce(ctx, url, tmpPath); err != nil {
+		if err := downloadOnce(ctx, url, tmpPath, name, progress); err != nil {
 			lastErr = err
 			if attempt < 3 && isRetryable(err) {
 				select {
@@ -228,7 +228,7 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 
 // downloadOnce downloads url into tmpPath, resuming a partial download when
 // the server supports it.
-func downloadOnce(ctx context.Context, url, tmpPath string) error {
+func downloadOnce(ctx context.Context, url, tmpPath, name string, progress *Progress) error {
 	var resume int64
 	if info, err := os.Stat(tmpPath); err == nil && info.Mode().IsRegular() {
 		resume = info.Size()
@@ -278,10 +278,47 @@ func downloadOnce(ctx context.Context, url, tmpPath string) error {
 	}
 	defer file.Close()
 
-	if _, err := io.Copy(file, resp.Body); err != nil {
+	total := int64(0)
+	if resp.ContentLength >= 0 {
+		total = resume + resp.ContentLength
+	}
+	writer := downloadProgressWriter{
+		writer:     file,
+		progress:   progress,
+		name:       name,
+		downloaded: resume,
+		total:      total,
+	}
+	progress.setDownload(name, resume, total)
+	if _, err := io.Copy(&writer, resp.Body); err != nil {
+		writer.report()
 		return err
 	}
+	writer.report()
 	return file.Close()
+}
+
+type downloadProgressWriter struct {
+	writer       io.Writer
+	progress     *Progress
+	name         string
+	downloaded   int64
+	total        int64
+	lastReported int64
+}
+
+func (w *downloadProgressWriter) Write(data []byte) (int, error) {
+	n, err := w.writer.Write(data)
+	w.downloaded += int64(n)
+	if w.downloaded-w.lastReported >= 1<<20 {
+		w.report()
+	}
+	return n, err
+}
+
+func (w *downloadProgressWriter) report() {
+	w.progress.setDownload(w.name, w.downloaded, w.total)
+	w.lastReported = w.downloaded
 }
 
 // canRetryStatus reports whether a failed request is worth repeating.
