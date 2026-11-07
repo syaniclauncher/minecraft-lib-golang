@@ -161,7 +161,12 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 		}
 	}
 
+	name := filepath.Base(path)
+	if len(label) > 0 {
+		name = label[0]
+	}
 	if !overwrite {
+		progress.setStatus("Checking " + name)
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			if sha1sum == "" {
 				return false, nil
@@ -178,10 +183,6 @@ func downloadFile(ctx context.Context, url, path, sha1sum, minecraftDirectory st
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
-	}
-	name := filepath.Base(path)
-	if len(label) > 0 {
-		name = label[0]
 	}
 	progress.setStatus("Downloading " + name)
 

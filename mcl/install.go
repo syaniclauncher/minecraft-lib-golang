@@ -164,7 +164,7 @@ func installVersion(ctx context.Context, versionID, minecraftDirectory, url, sha
 	if data.JavaVersion != nil {
 		majorVersion = data.JavaVersion.MajorVersion
 	}
-	progress.setStatus("Installing java runtime")
+	progress.setStatus("Checking Java runtime")
 	if err := InstallJVMRuntime(ctx, majorVersion, minecraftDirectory, progress); err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func installVersion(ctx context.Context, versionID, minecraftDirectory, url, sha
 
 // installLibraries downloads every library of a version.
 func installLibraries(ctx context.Context, versionID string, libraries []Library, minecraftDirectory string, progress *Progress) error {
-	progress.setStatus("Downloading Libraries")
+	progress.setStatus("Checking Libraries")
 	progress.setMax(len(libraries))
 
 	var mu sync.Mutex
@@ -289,7 +289,7 @@ func installAssets(ctx context.Context, data *ClientJSON, minecraftDirectory str
 		return nil
 	}
 
-	progress.setStatus("Downloading Assets")
+	progress.setStatus("Checking Assets")
 	indexPath := filepath.Join(minecraftDirectory, "assets", "indexes", data.Assets+".json")
 	if _, err := downloadFile(ctx, data.AssetIndex.URL, indexPath, data.AssetIndex.SHA1, minecraftDirectory, false, progress, "Assets "+filepath.Base(indexPath)); err != nil {
 		return err

@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -49,6 +51,15 @@ func installJavaRuntime(t *testing.T, minecraftDirectory string, majorVersion in
 	root := "jdk-21.0.1+1"
 	writeFile(t, filepath.Join(base, ".temurin"), root)
 	writeFile(t, filepath.Join(base, root, "bin", "java"), "")
+}
+
+func containsStatus(statuses []string, want string) bool {
+	for _, status := range statuses {
+		if status == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestInstall(t *testing.T) {
@@ -91,7 +102,14 @@ func TestInstall(t *testing.T) {
 	installJavaRuntime(t, dir, 8)
 
 	var downloadedBytes, totalBytes atomic.Int64
+	var statusMu sync.Mutex
+	var statuses []string
 	progress := &mcl.Progress{
+		Status: func(status string) {
+			statusMu.Lock()
+			statuses = append(statuses, status)
+			statusMu.Unlock()
+		},
 		Download: func(name string, downloaded, total int64) {
 			if name == "artifact-1.0.jar" {
 				downloadedBytes.Store(downloaded)
@@ -105,6 +123,25 @@ func TestInstall(t *testing.T) {
 	if downloadedBytes.Load() != 7 || totalBytes.Load() != 7 {
 		t.Errorf("download progress for artifact-1.0.jar = [%d %d]; want [7 7]", downloadedBytes.Load(), totalBytes.Load())
 	}
+	if !containsStatus(statuses, "Checking Assets") || !containsStatus(statuses, "Downloading Assets "+assetHashHex) {
+		t.Errorf("asset check/download statuses missing: %v", statuses)
+	}
+
+	statusMu.Lock()
+	statuses = nil
+	statusMu.Unlock()
+	if err := mcl.Install(context.Background(), "1.20.1", dir, progress); err != nil {
+		t.Fatalf("Install existing version: %v", err)
+	}
+	if !containsStatus(statuses, "Checking Assets") || !containsStatus(statuses, "Checking Java runtime") {
+		t.Errorf("checking statuses missing for existing files: %v", statuses)
+	}
+	for _, status := range statuses {
+		if strings.HasPrefix(status, "Downloading ") {
+			t.Errorf("existing installation reported a download: %v", statuses)
+			break
+		}
+	}
 
 	for _, path := range []string{
 		filepath.Join("libraries", "org", "example", "artifact", "1.0", "artifact-1.0.jar"),
@@ -115,4 +152,5 @@ func TestInstall(t *testing.T) {
 			t.Errorf("the file %s was not written: %v", path, err)
 		}
 	}
+
 }
