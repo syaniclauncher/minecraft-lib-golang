@@ -21,10 +21,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -69,6 +74,11 @@ type launcher struct {
 	// the background, so it is nil until the loading is done.
 	data *versions
 
+	// game is the running game. It is nil when no game runs. Only the
+	// thread of the window touches it.
+	game          *exec.Cmd
+	installCancel context.CancelFunc
+
 	application         fyne.App
 	window              fyne.Window
 	username            *widget.Entry
@@ -76,12 +86,20 @@ type launcher struct {
 	token               *widget.Entry
 	loaderFolder        *widget.Entry
 	minecraftFolder     *widget.Entry
+	javaPath            *widget.Entry
+	minMemory           *widget.Entry
+	maxMemory           *widget.Entry
+	jvmArguments        *widget.Entry
 	loaderSelect        *widget.Select
 	minecraftSelect     *widget.Select
 	loaderVersionSelect *widget.Select
 	playButton          *widget.Button
-	progressBar         *widget.ProgressBar
-	status              *widget.Label
+	// form holds the widgets of the window. The form greys the label of a
+	// field that is disabled, so it has to be refreshed when a field is
+	// enabled again.
+	form        *widget.Form
+	progressBar *widget.ProgressBar
+	status      *widget.Label
 	// consoleBox holds the console with a theme of its own.
 	consoleBox *container.ThemeOverride
 	// console shows the output of the game.
@@ -144,13 +162,30 @@ func (l *launcher) build() {
 	l.minecraftFolder.SetPlaceHolder("/game_dir")
 	l.minecraftFolder.OnChanged = func(string) { l.foldersChanged() }
 
+	// The Java of the launcher is used when no other one is given.
+	l.javaPath = widget.NewEntry()
+	l.javaPath.SetPlaceHolder("java to be used by game")
+
+	// The memory of the game in megabytes. The game decides when the fields
+	// are empty.
+	l.minMemory = widget.NewEntry()
+	l.minMemory.SetPlaceHolder("512")
+	l.maxMemory = widget.NewEntry()
+	l.maxMemory.SetPlaceHolder("2048")
+
+	l.jvmArguments = widget.NewEntry()
+	l.jvmArguments.SetPlaceHolder("put custom args here")
+
 	l.loaderSelect = widget.NewSelect(loaderNames, func(string) { l.refreshMinecraftVersions() })
 	l.loaderSelect.SetSelected("Vanilla")
 	l.minecraftSelect = widget.NewSelect(nil, func(string) { l.refreshLoaderVersions() })
+	// The versions are loaded in the background.
+	l.minecraftSelect.PlaceHolder = "Loading.."
 	l.loaderVersionSelect = widget.NewSelect(nil, nil)
+	l.loaderVersionSelect.PlaceHolder = "Loading.."
 	l.loaderVersionSelect.Disable()
 
-	l.playButton = widget.NewButton("Launch Game", l.play)
+	l.playButton = widget.NewButton("Launch Game", l.toggleGame)
 	l.playButton.Disable()
 
 	l.progressBar = widget.NewProgressBar()
@@ -170,12 +205,14 @@ func (l *launcher) build() {
 	l.console.Disable()
 
 	l.clearButton = widget.NewButton("Clear", l.clearConsole)
-	l.consoleButton = widget.NewButton("Hide console", l.toggleConsole)
+	l.consoleButton = widget.NewButton("Show console", l.toggleConsole)
 
 	// The text of the console is a bit bigger than the text of the window.
 	l.consoleBox = container.NewThemeOverride(l.console, consoleTheme{Theme: l.application.Settings().Theme()})
+	// The console is only shown when the user asks for it.
+	l.consoleBox.Hide()
 
-	form := widget.NewForm(
+	l.form = widget.NewForm(
 		widget.NewFormItem("Username", l.username),
 		widget.NewFormItem("", widget.NewAccordion(
 			widget.NewAccordionItem("Advance User Options", container.New(layout.NewFormLayout(),
@@ -186,10 +223,17 @@ func (l *launcher) build() {
 		widget.NewFormItem("Mod Loader", l.loaderSelect),
 		widget.NewFormItem("Minecraft Version", l.minecraftSelect),
 		widget.NewFormItem("Loader Version", l.loaderVersionSelect),
+		widget.NewFormItem("Instance Folder", l.folderRow(l.minecraftFolder)),
 		widget.NewFormItem("", widget.NewAccordion(
 			widget.NewAccordionItem("Advance Game Options", container.New(layout.NewFormLayout(),
 				widget.NewLabel("Launcher Folder"), l.folderRow(l.loaderFolder),
-				widget.NewLabel("Instance Folder"), l.folderRow(l.minecraftFolder),
+				widget.NewLabel("JRE Location"), container.NewVBox(
+					l.pathRow(l.javaPath, l.selectJava),
+					hint("Reccomended to keep the JRE location empty, the core will automatically download the appropriate Java from Temurin."),
+				),
+				widget.NewLabel("Minimum Memory (MB)"), l.minMemory,
+				widget.NewLabel("Maximum Memory (MB)"), l.maxMemory,
+				widget.NewLabel("JVM Arguments"), l.jvmArguments,
 			)),
 		)),
 	)
@@ -197,7 +241,7 @@ func (l *launcher) build() {
 	// The console fills the space that is left over.
 	l.window.SetContent(container.NewPadded(container.NewBorder(
 		container.NewVBox(
-			form,
+			l.form,
 			l.playButton,
 			l.progressBar,
 			l.status,
@@ -225,8 +269,14 @@ func (t consoleTheme) Size(name fyne.ThemeSizeName) float32 {
 // folderRow returns the field of a folder with the buttons that choose and
 // reset it.
 func (l *launcher) folderRow(field *widget.Entry) fyne.CanvasObject {
+	return l.pathRow(field, l.selectFolder)
+}
+
+// pathRow returns the field with the buttons that choose and reset it. The
+// choose button calls the given function with the field.
+func (l *launcher) pathRow(field *widget.Entry, choose func(*widget.Entry)) fyne.CanvasObject {
 	buttons := container.NewHBox(
-		widget.NewButton("Select", func() { l.selectFolder(field) }),
+		widget.NewButton("Select", func() { choose(field) }),
 		widget.NewButton("Reset", func() { field.SetText("") }),
 	)
 	// The field fills the space that the buttons leave over.
@@ -241,6 +291,70 @@ func (l *launcher) selectFolder(field *widget.Entry) {
 		}
 		field.SetText(uri.Path())
 	}, l.window).Show()
+}
+
+// selectJava lets the user choose the folder of a Java installation. The java
+// executable inside it runs the game.
+func (l *launcher) selectJava(field *widget.Entry) {
+	dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		field.SetText(javaExecutable(uri.Path()))
+	}, l.window).Show()
+}
+
+// javaExecutable returns the path of the java executable of a Java folder.
+func javaExecutable(folder string) string {
+	name := "java"
+	if runtime.GOOS == "windows" {
+		// The windowed executable does not open a console window.
+		name = "javaw.exe"
+	}
+	return filepath.Join(folder, "bin", name)
+}
+
+// hint returns a small grey line that explains a field.
+func hint(text string) *widget.RichText {
+	line := widget.NewRichText(&widget.TextSegment{
+		Style: widget.RichTextStyle{
+			ColorName: theme.ColorNamePlaceHolder,
+			SizeName:  theme.SizeNameCaptionText,
+			Inline:    true,
+		},
+		Text: text,
+	})
+	line.Wrapping = fyne.TextWrapWord
+	return line
+}
+
+// javaArguments returns the arguments of the Java process: the ones the user
+// wrote and the memory the game may use.
+//
+// The memory is given in megabytes. The game decides when it is empty.
+func (l *launcher) javaArguments() ([]string, error) {
+	arguments := strings.Fields(l.jvmArguments.Text)
+
+	for _, memory := range []struct {
+		name  string
+		field *widget.Entry
+		flag  string
+	}{
+		{"minimum", l.minMemory, "-Xms"},
+		{"maximum", l.maxMemory, "-Xmx"},
+	} {
+		text := strings.TrimSpace(memory.field.Text)
+		if text == "" {
+			continue
+		}
+		size, err := strconv.Atoi(text)
+		if err != nil || size <= 0 {
+			return nil, fmt.Errorf("The %s memory must be a number of megabytes.", memory.name)
+		}
+		// The lower case m is the megabyte of the Java virtual machine.
+		arguments = append(arguments, memory.flag+strconv.Itoa(size)+"m")
+	}
+	return arguments, nil
 }
 
 // foldersChanged uses the folders of the window. Only the versions that are
@@ -355,6 +469,9 @@ func (l *launcher) refreshMinecraftVersions() {
 		l.minecraftSelect.SetSelected(list[0])
 	} else {
 		l.minecraftSelect.ClearSelected()
+		// There is no version to choose.
+		l.minecraftSelect.PlaceHolder = "Not Available"
+		l.minecraftSelect.Refresh()
 	}
 	l.refreshLoaderVersions()
 }
@@ -370,9 +487,16 @@ func (l *launcher) refreshLoaderVersions() {
 		l.loaderVersionSelect.SetOptions(nil)
 		l.loaderVersionSelect.ClearSelected()
 		l.loaderVersionSelect.Disable()
+		// The vanilla game and the snapshots have no mod loader.
+		l.loaderVersionSelect.PlaceHolder = "Not Available"
+		l.loaderVersionSelect.Refresh()
+		// The form greys the label of a disabled field.
+		l.form.Refresh()
 		return
 	}
 	l.loaderVersionSelect.Enable()
+	// The label of the field is grey while it is disabled.
+	l.form.Refresh()
 
 	// The versions of Fabric and Quilt are the same for every Minecraft
 	// version, the versions of Forge and NeoForge depend on it.
@@ -386,7 +510,55 @@ func (l *launcher) refreshLoaderVersions() {
 		l.loaderVersionSelect.SetSelected(list[0])
 	} else {
 		l.loaderVersionSelect.ClearSelected()
+		// The loader has no version for this Minecraft version.
+		l.loaderVersionSelect.PlaceHolder = "Not Available"
+		l.loaderVersionSelect.Refresh()
 	}
+}
+
+// toggleGame starts the game, or stops it when it already runs.
+func (l *launcher) toggleGame() {
+	if l.game != nil {
+		// The game is stopped. The button is turned back when the game is
+		// really gone.
+		l.game.Process.Kill()
+		return
+	}
+	if l.installCancel != nil {
+		l.installCancel()
+		l.playButton.SetText("Cancelling...")
+		l.playButton.Disable()
+		return
+	}
+	l.play()
+}
+
+// showCancelButton turns the button into the button that cancels installation.
+func (l *launcher) showCancelButton() {
+	l.playButton.SetText("Cancel Installation")
+	l.playButton.Importance = widget.DangerImportance
+	l.playButton.Refresh()
+}
+
+// showKillButton turns the button into the button that stops the running
+// game.
+func (l *launcher) showKillButton(game *exec.Cmd) {
+	l.game = game
+
+	l.playButton.SetText("Kill Game")
+	// The danger theme paints the button red.
+	l.playButton.Importance = widget.DangerImportance
+	l.playButton.Refresh()
+}
+
+// showLaunchButton turns the button back into the button that starts the
+// game.
+func (l *launcher) showLaunchButton() {
+	l.game = nil
+
+	l.playButton.SetText("Launch Game")
+	l.playButton.Importance = widget.MediumImportance
+	l.playButton.Refresh()
 }
 
 // play installs the selected version and starts the game.
@@ -400,13 +572,20 @@ func (l *launcher) play() {
 		l.setStatus("Please select a Minecraft version.")
 		return
 	}
+	arguments, err := l.javaArguments()
+	if err != nil {
+		l.setStatus(err.Error())
+		return
+	}
 	// The selection is read here, because the window belongs to another
 	// thread than the installation.
 	loaderName := l.loaderSelect.Selected
 	minecraftVersion := l.minecraftSelect.Selected
 	loaderVersion := l.loaderVersionSelect.Selected
 
-	l.playButton.Disable()
+	ctx, cancel := context.WithCancel(context.Background())
+	l.installCancel = cancel
+	l.showCancelButton()
 	// The bar is only shown while the game is launching.
 	l.progressBar.Show()
 	l.progressBar.SetValue(0)
@@ -415,15 +594,33 @@ func (l *launcher) play() {
 	l.clearConsole()
 
 	go func() {
-		err := l.installAndLaunch(username, loaderName, minecraftVersion, loaderVersion)
+		game, err := l.installAndLaunch(ctx, username, loaderName, minecraftVersion, loaderVersion, arguments)
 		fyne.Do(func() {
+			cancel()
+			l.installCancel = nil
 			l.playButton.Enable()
 			l.progressBar.Hide()
 			if err != nil {
-				l.setStatus("Failed: " + err.Error())
+				l.showLaunchButton()
+				if errors.Is(err, context.Canceled) {
+					l.setStatus("Installation cancelled")
+				} else {
+					l.setStatus("Failed: " + err.Error())
+				}
 				return
 			}
-			l.setStatus("Minecraft launched!")
+			l.setStatus("Minecraft launched! (The graphics engine may take time to load.)")
+			l.showKillButton(game)
+		})
+		if game == nil {
+			return
+		}
+		// The status is cleared and the button starts the next game when the
+		// game closes.
+		game.Wait()
+		fyne.Do(func() {
+			l.setStatus("")
+			l.showLaunchButton()
 		})
 	}()
 }

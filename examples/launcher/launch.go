@@ -104,8 +104,10 @@ func loadVersions(ctx context.Context, minecraftDirectory string) (*versions, er
 }
 
 // installAndLaunch installs the chosen version and starts the game.
-func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, loaderVersion string) error {
-	ctx := context.Background()
+//
+// The arguments are the ones of the Java process. It returns the running
+// game, so that the caller can wait for it to close.
+func (l *launcher) installAndLaunch(ctx context.Context, username, loaderName, minecraftVersion, loaderVersion string, arguments []string) (*exec.Cmd, error) {
 	version := minecraftVersion
 
 	if id := loaderIDs[loaderName]; id != "" {
@@ -117,13 +119,13 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 				Progress:      l.newProgress(),
 			})
 			if err != nil {
-				return err
+				return nil, err
 			}
 			version = installed
 		}
 	} else if loaderName != "Custom" && !l.isInstalled(minecraftVersion) {
 		if err := mcl.Install(ctx, minecraftVersion, l.minecraftDirectory, l.newProgress()); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -134,13 +136,15 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 		uuid = mcl.OfflineUUID(username)
 	}
 	command, err := mcl.Command(version, l.minecraftDirectory, mcl.Options{
-		Username:      username,
-		UUID:          uuid,
-		Token:         strings.TrimSpace(l.token.Text),
-		GameDirectory: l.gameDirectory,
+		Username:       username,
+		UUID:           uuid,
+		Token:          strings.TrimSpace(l.token.Text),
+		ExecutablePath: strings.TrimSpace(l.javaPath.Text),
+		JVMArguments:   arguments,
+		GameDirectory:  l.gameDirectory,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Println("launching:", strings.Join(command, " "))
 
@@ -151,9 +155,9 @@ func (l *launcher) installAndLaunch(username, loaderName, minecraftVersion, load
 	game.Stdout = output
 	game.Stderr = output
 	if err := game.Start(); err != nil {
-		return fmt.Errorf("start the game: %w", err)
+		return nil, fmt.Errorf("start the game: %w", err)
 	}
-	return nil
+	return game, nil
 }
 
 // consoleWriter sends the output of the game to the console of the window.
