@@ -1,9 +1,21 @@
-name: Build
+name: Checks CI
 
 on:
   push:
     branches: [master]
+    paths:
+      - '**.go'
+      - '**.mod'
+      - 'mcl/**'
+      - 'examples/**'
+
   pull_request:
+    paths:
+      - '**.go'
+      - '**.mod'
+      - 'mcl/**'
+      - 'examples/**'
+
   workflow_dispatch:
 
 permissions:
