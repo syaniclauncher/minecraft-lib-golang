@@ -1,4 +1,4 @@
-package mcl
+package mcl_test
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 const testLauncherProfiles = `{
@@ -37,7 +39,7 @@ func TestLoadVanillaLauncherProfiles(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "launcher_profiles.json"), testLauncherProfiles)
 
-	profiles, err := LoadVanillaLauncherProfiles(dir)
+	profiles, err := mcl.LoadVanillaLauncherProfiles(dir)
 	if err != nil {
 		t.Fatalf("LoadVanillaLauncherProfiles: %v", err)
 	}
@@ -45,7 +47,7 @@ func TestLoadVanillaLauncherProfiles(t *testing.T) {
 		t.Fatalf("got %d profiles, want 2", len(profiles))
 	}
 
-	byName := map[string]VanillaLauncherProfile{}
+	byName := map[string]mcl.VanillaLauncherProfile{}
 	for _, profile := range profiles {
 		byName[profile.Name] = profile
 	}
@@ -54,7 +56,7 @@ func TestLoadVanillaLauncherProfiles(t *testing.T) {
 	if !ok {
 		t.Fatalf("the profiles are %v", profiles)
 	}
-	if release.VersionType != VersionTypeLatestRelease {
+	if release.VersionType != mcl.VersionTypeLatestRelease {
 		t.Errorf("the version type is %q", release.VersionType)
 	}
 	if release.GameDirectory != "/games/minecraft" {
@@ -74,22 +76,22 @@ func TestLoadVanillaLauncherProfiles(t *testing.T) {
 	if !ok {
 		t.Fatalf("the profiles are %v", profiles)
 	}
-	if modded.VersionType != VersionTypeCustom || modded.Version != "1.20.1-forge-47.1.0" {
+	if modded.VersionType != mcl.VersionTypeCustom || modded.Version != "1.20.1-forge-47.1.0" {
 		t.Errorf("the version is %q of the type %q", modded.Version, modded.VersionType)
 	}
 }
 
 func TestVanillaLauncherProfileToOptions(t *testing.T) {
-	profile := VanillaLauncherProfile{
+	profile := mcl.VanillaLauncherProfile{
 		Name:             "Latest release",
-		VersionType:      VersionTypeLatestRelease,
+		VersionType:      mcl.VersionTypeLatestRelease,
 		GameDirectory:    "/games/minecraft",
 		JavaExecutable:   "/usr/lib/jvm/java-21",
 		JavaArguments:    []string{"-Xmx2G"},
-		CustomResolution: &Resolution{Width: 1920, Height: 1080},
+		CustomResolution: &mcl.Resolution{Width: 1920, Height: 1080},
 	}
 
-	options, err := VanillaLauncherProfileToOptions(profile)
+	options, err := mcl.VanillaLauncherProfileToOptions(profile)
 	if err != nil {
 		t.Fatalf("VanillaLauncherProfileToOptions: %v", err)
 	}
@@ -108,22 +110,22 @@ func TestVanillaLauncherProfileToOptions(t *testing.T) {
 }
 
 func TestVanillaLauncherProfileToOptionsRejectsInvalidProfiles(t *testing.T) {
-	if _, err := VanillaLauncherProfileToOptions(VanillaLauncherProfile{Name: "x"}); err == nil {
+	if _, err := mcl.VanillaLauncherProfileToOptions(mcl.VanillaLauncherProfile{Name: "x"}); err == nil {
 		t.Error("a profile without a version type should be refused")
 	}
-	if _, err := VanillaLauncherProfileToOptions(VanillaLauncherProfile{Name: "x", VersionType: VersionTypeCustom}); err == nil {
+	if _, err := mcl.VanillaLauncherProfileToOptions(mcl.VanillaLauncherProfile{Name: "x", VersionType: mcl.VersionTypeCustom}); err == nil {
 		t.Error("a custom profile without a version should be refused")
 	}
-	if _, err := VanillaLauncherProfileToOptions(VanillaLauncherProfile{VersionType: VersionTypeCustom, Version: "1.20.1"}); err == nil {
+	if _, err := mcl.VanillaLauncherProfileToOptions(mcl.VanillaLauncherProfile{VersionType: mcl.VersionTypeCustom, Version: "1.20.1"}); err == nil {
 		t.Error("a profile without a name should be refused")
 	}
 }
 
 func TestVanillaLauncherProfileVersion(t *testing.T) {
-	version, err := VanillaLauncherProfileVersion(context.Background(), VanillaLauncherProfile{
+	version, err := mcl.VanillaLauncherProfileVersion(context.Background(), mcl.VanillaLauncherProfile{
 		Name:        "Modded",
 		Version:     "1.20.1-forge-47.1.0",
-		VersionType: VersionTypeCustom,
+		VersionType: mcl.VersionTypeCustom,
 	})
 	if err != nil {
 		t.Fatalf("VanillaLauncherProfileVersion: %v", err)
@@ -137,14 +139,14 @@ func TestAddVanillaLauncherProfile(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "launcher_profiles.json"), testLauncherProfiles)
 
-	profile := VanillaLauncherProfile{
+	profile := mcl.VanillaLauncherProfile{
 		Name:          "New",
 		Version:       "1.20.1",
-		VersionType:   VersionTypeCustom,
+		VersionType:   mcl.VersionTypeCustom,
 		GameDirectory: "/games/other",
 		JavaArguments: []string{"-Xmx4G"},
 	}
-	if err := AddVanillaLauncherProfile(dir, profile); err != nil {
+	if err := mcl.AddVanillaLauncherProfile(dir, profile); err != nil {
 		t.Fatalf("AddVanillaLauncherProfile: %v", err)
 	}
 
@@ -152,57 +154,50 @@ func TestAddVanillaLauncherProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var file vanillaProfilesFile
+	var file map[string]any
 	if err := json.Unmarshal(data, &file); err != nil {
 		t.Fatalf("parse the profiles: %v", err)
 	}
-	if len(file.Profiles.keys) != 3 {
-		t.Fatalf("got %d profiles, want 3", len(file.Profiles.keys))
+	entries := file["profiles"].(map[string]any)
+	if len(entries) != 3 {
+		t.Fatalf("got %d profiles, want %d", len(entries), 3)
 	}
 
-	var added *vanillaProfileEntry
-	for _, raw := range file.Profiles.values {
-		encoded, err := json.Marshal(raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var entry vanillaProfileEntry
-		if err := json.Unmarshal(encoded, &entry); err != nil {
-			t.Fatal(err)
-		}
-		if entry.Name == "New" {
-			entry := entry
-			added = &entry
+	var added map[string]any
+	for _, raw := range entries {
+		entry := raw.(map[string]any)
+		if entry["name"] == "New" {
+			added = entry
 		}
 	}
 	if added == nil {
 		t.Fatal("the new profile is missing")
 	}
-	if added.LastVersionID != "1.20.1" {
-		t.Errorf("the version is %q", added.LastVersionID)
+	if added["lastVersionId"] != "1.20.1" {
+		t.Errorf("the version is %q", added["lastVersionId"])
 	}
-	if added.GameDir != "/games/other" {
-		t.Errorf("the game directory is %q", added.GameDir)
+	if added["gameDir"] != "/games/other" {
+		t.Errorf("the game directory is %q", added["gameDir"])
 	}
-	if added.JavaArgs == nil || *added.JavaArgs != "-Xmx4G" {
-		t.Errorf("the java arguments are %v", added.JavaArgs)
+	if added["javaArgs"] != "-Xmx4G" {
+		t.Errorf("the java arguments are %v", added["javaArgs"])
 	}
 }
 
 func TestEnsureVanillaLauncherProfiles(t *testing.T) {
 	dir := t.TempDir()
 
-	if VanillaLauncherProfilesExist(dir) {
+	if mcl.VanillaLauncherProfilesExist(dir) {
 		t.Error("the profiles should not exist yet")
 	}
-	if err := EnsureVanillaLauncherProfiles(dir); err != nil {
+	if err := mcl.EnsureVanillaLauncherProfiles(dir); err != nil {
 		t.Fatalf("EnsureVanillaLauncherProfiles: %v", err)
 	}
-	if !VanillaLauncherProfilesExist(dir) {
+	if !mcl.VanillaLauncherProfilesExist(dir) {
 		t.Error("the profiles should exist now")
 	}
 
-	profiles, err := LoadVanillaLauncherProfiles(dir)
+	profiles, err := mcl.LoadVanillaLauncherProfiles(dir)
 	if err != nil {
 		t.Fatalf("LoadVanillaLauncherProfiles: %v", err)
 	}
@@ -212,10 +207,10 @@ func TestEnsureVanillaLauncherProfiles(t *testing.T) {
 
 	// An existing file is not overwritten.
 	writeFile(t, filepath.Join(dir, "launcher_profiles.json"), testLauncherProfiles)
-	if err := EnsureVanillaLauncherProfiles(dir); err != nil {
+	if err := mcl.EnsureVanillaLauncherProfiles(dir); err != nil {
 		t.Fatalf("EnsureVanillaLauncherProfiles: %v", err)
 	}
-	profiles, err = LoadVanillaLauncherProfiles(dir)
+	profiles, err = mcl.LoadVanillaLauncherProfiles(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +243,7 @@ func TestAddVanillaLauncherProfileKeepsTheOtherProfiles(t *testing.T) {
     "version": 3
 }`)
 
-	profiles, err := LoadVanillaLauncherProfiles(dir)
+	profiles, err := mcl.LoadVanillaLauncherProfiles(dir)
 	if err != nil {
 		t.Fatalf("LoadVanillaLauncherProfiles: %v", err)
 	}
@@ -256,10 +251,10 @@ func TestAddVanillaLauncherProfileKeepsTheOtherProfiles(t *testing.T) {
 		t.Fatalf("the profiles are %v, want them in the order of the file", profiles)
 	}
 
-	if err := AddVanillaLauncherProfile(dir, VanillaLauncherProfile{
+	if err := mcl.AddVanillaLauncherProfile(dir, mcl.VanillaLauncherProfile{
 		Name:        "Third",
 		Version:     "1.21",
-		VersionType: VersionTypeCustom,
+		VersionType: mcl.VersionTypeCustom,
 	}); err != nil {
 		t.Fatalf("AddVanillaLauncherProfile: %v", err)
 	}
@@ -275,7 +270,7 @@ func TestAddVanillaLauncherProfileKeepsTheOtherProfiles(t *testing.T) {
 
 	entries := raw["profiles"].(map[string]any)
 	if len(entries) != 3 {
-		t.Fatalf("got %d profiles, want 3", len(entries))
+		t.Fatalf("got %d profiles, want %d", len(entries), 3)
 	}
 	first := entries["first"].(map[string]any)
 	if first["icon"] != "ProfileName.png" {
@@ -285,12 +280,12 @@ func TestAddVanillaLauncherProfileKeepsTheOtherProfiles(t *testing.T) {
 		t.Errorf("the settings are %v, want them to be kept", raw["settings"])
 	}
 
-	profiles, err = LoadVanillaLauncherProfiles(dir)
+	profiles, err = mcl.LoadVanillaLauncherProfiles(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(profiles) != 3 {
-		t.Fatalf("got %d profiles, want 3", len(profiles))
+		t.Fatalf("got %d profiles, want %d", len(profiles), 3)
 	}
 	if profiles[0].Name != "First" || profiles[2].Name != "Third" {
 		t.Errorf("the profiles are %v, want them in the order of the file", profiles)

@@ -1,10 +1,12 @@
-package mcl
+package mcl_test
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 // testMinecraftDirectory creates a Minecraft directory with a single modern
@@ -41,7 +43,7 @@ func testMinecraftDirectory(t *testing.T) string {
 func TestCommand(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{
 		Username: "Player",
 		UUID:     "1234",
 		Token:    "token",
@@ -102,7 +104,7 @@ func TestOfflineUUID(t *testing.T) {
 		"Notch":   "b50ad385-829d-3141-a216-7e7d7539ba7f",
 	}
 	for username, want := range tests {
-		if got := OfflineUUID(username); got != want {
+		if got := mcl.OfflineUUID(username); got != want {
 			t.Errorf("OfflineUUID(%q) = %q, want %q", username, got, want)
 		}
 	}
@@ -111,16 +113,16 @@ func TestOfflineUUID(t *testing.T) {
 func TestCommandGeneratesUUID(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{Username: "Player"})
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{Username: "Player"})
 	if err != nil {
 		t.Fatalf("Command: %v", err)
 	}
-	if !strings.Contains(strings.Join(command, " "), "--uuid "+OfflineUUID("Player")) {
+	if !strings.Contains(strings.Join(command, " "), "--uuid "+mcl.OfflineUUID("Player")) {
 		t.Errorf("the UUID is missing: %v", command)
 	}
 
 	// A UUID that is given is used as it is.
-	command, err = Command("1.20.1", dir, Options{Username: "Player", UUID: "1234"})
+	command, err = mcl.Command("1.20.1", dir, mcl.Options{Username: "Player", UUID: "1234"})
 	if err != nil {
 		t.Fatalf("Command: %v", err)
 	}
@@ -133,7 +135,7 @@ func TestCommandCreatesDirectories(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 	gameDir := filepath.Join(t.TempDir(), "game_dir")
 
-	if _, err := Command("1.20.1", dir, Options{Username: "Player", GameDirectory: gameDir}); err != nil {
+	if _, err := mcl.Command("1.20.1", dir, mcl.Options{Username: "Player", GameDirectory: gameDir}); err != nil {
 		t.Fatalf("Command: %v", err)
 	}
 
@@ -154,7 +156,7 @@ func TestCommandCreatesMinecraftDirectory(t *testing.T) {
 		"mainClass": "net.minecraft.client.main.Main"
 	}`)
 
-	if _, err := Command("1.20.1", dir, Options{Username: "Player"}); err != nil {
+	if _, err := mcl.Command("1.20.1", dir, mcl.Options{Username: "Player"}); err != nil {
 		t.Fatalf("Command: %v", err)
 	}
 
@@ -170,7 +172,7 @@ func TestCommandCreatesMinecraftDirectory(t *testing.T) {
 func TestCommandWithFeatureRules(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{
 		Username:         "Player",
 		CustomResolution: true,
 		ResolutionWidth:  "1920",
@@ -195,7 +197,7 @@ func TestCommandWithFeatureRules(t *testing.T) {
 func TestCommandWithoutFeatureRules(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{Username: "Player"})
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{Username: "Player"})
 	if err != nil {
 		t.Fatalf("Command: %v", err)
 	}
@@ -211,7 +213,7 @@ func TestCommandWithoutFeatureRules(t *testing.T) {
 func TestCommandWithServerAndSwitches(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{
 		Username:           "Player",
 		Server:             "example.com",
 		Port:               "25565",
@@ -232,7 +234,7 @@ func TestCommandWithServerAndSwitches(t *testing.T) {
 func TestCommandWithExplicitJava(t *testing.T) {
 	dir := testMinecraftDirectory(t)
 
-	command, err := Command("1.20.1", dir, Options{
+	command, err := mcl.Command("1.20.1", dir, mcl.Options{
 		Username:       "Player",
 		ExecutablePath: "/usr/bin/java",
 		JVMArguments:   []string{"-Xmx2G"},
@@ -249,7 +251,7 @@ func TestCommandWithExplicitJava(t *testing.T) {
 }
 
 func TestCommandOfUnknownVersion(t *testing.T) {
-	_, err := Command("1.2.3", t.TempDir(), Options{})
+	_, err := mcl.Command("1.2.3", t.TempDir(), mcl.Options{})
 	if err == nil {
 		t.Fatal("Command should fail for an unknown version")
 	}
@@ -268,7 +270,7 @@ func TestCommandOfLegacyVersion(t *testing.T) {
 		"minecraftArguments": "--username ${auth_player_name} --version ${version_name}"
 	}`)
 
-	command, err := Command("1.12.2", dir, Options{Username: "Player", CustomResolution: true})
+	command, err := mcl.Command("1.12.2", dir, mcl.Options{Username: "Player", CustomResolution: true})
 	if err != nil {
 		t.Fatalf("Command: %v", err)
 	}

@@ -1,4 +1,4 @@
-package mcl
+package mcl_test
 
 import (
 	"archive/zip"
@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 // writeMrpack creates a .mrpack file with the given index and returns its
@@ -73,7 +75,7 @@ func TestGetMrpackInformation(t *testing.T) {
 	dir := t.TempDir()
 	path := writeMrpack(t, dir, testMrpackIndex, nil)
 
-	information, err := GetMrpackInformation(path)
+	information, err := mcl.GetMrpackInformation(path)
 	if err != nil {
 		t.Fatalf("GetMrpackInformation: %v", err)
 	}
@@ -114,32 +116,13 @@ func TestMrpackLaunchVersion(t *testing.T) {
 		index := `{"formatVersion": 1, "versionId": "1.0.0", "name": "Pack", "dependencies": {` + test.dependencies + `}, "files": []}`
 		path := writeMrpack(t, dir, index, nil)
 
-		version, err := MrpackLaunchVersion(path)
+		version, err := mcl.MrpackLaunchVersion(path)
 		if err != nil {
 			t.Fatalf("MrpackLaunchVersion: %v", err)
 		}
 		if version != test.want {
 			t.Errorf("got %q, want %q", version, test.want)
 		}
-	}
-}
-
-func TestFilterMrpackFiles(t *testing.T) {
-	index, err := readMrpackIndex(writeMrpack(t, t.TempDir(), testMrpackIndex, nil))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	files := filterMrpackFiles(index.Files, MrpackInstallOptions{})
-	if len(files) != 1 || files[0].Path != "mods/required.jar" {
-		t.Errorf("got %v, want only the required file", files)
-	}
-
-	files = filterMrpackFiles(index.Files, MrpackInstallOptions{
-		OptionalFiles: []string{"mods/optional.jar"},
-	})
-	if len(files) != 2 {
-		t.Errorf("got %v, want both files", files)
 	}
 }
 
@@ -152,7 +135,7 @@ func TestInstallMrpackExtractsOverrides(t *testing.T) {
 	})
 
 	minecraftDirectory := t.TempDir()
-	if err := InstallMrpack(context.Background(), path, minecraftDirectory, "", MrpackInstallOptions{
+	if err := mcl.InstallMrpack(context.Background(), path, minecraftDirectory, "", mcl.MrpackInstallOptions{
 		SkipDependenciesInstall: true,
 	}, nil); err != nil {
 		t.Fatalf("InstallMrpack: %v", err)

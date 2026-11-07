@@ -31,7 +31,7 @@ func Example() {
 }
 
 // This example installs a mod loader.
-func ExampleModLoader() {
+func Example_modLoader() {
 	ctx := context.Background()
 	directory := mcl.DefaultMinecraftDirectory()
 
@@ -50,7 +50,7 @@ func ExampleModLoader() {
 
 // This example prints the versions that are installed in the Minecraft
 // directory.
-func ExampleInstalledVersions() {
+func Example_installedVersions() {
 	versions, err := mcl.InstalledVersions(mcl.DefaultMinecraftDirectory())
 	if err != nil {
 		log.Fatal(err)

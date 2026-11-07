@@ -1,4 +1,4 @@
-package mcl
+package mcl_test
 
 import (
 	"crypto/sha256"
@@ -6,16 +6,18 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/syaniclauncher/minecraft-lib-golang/mcl"
 )
 
 func TestLoginURL(t *testing.T) {
-	rawURL := LoginURL("client-id", "http://localhost:8080")
+	rawURL := mcl.LoginURL("client-id", "http://localhost:8080")
 
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		t.Fatalf("parse the login url: %v", err)
 	}
-	if !strings.HasPrefix(rawURL, MSAAuthURL) {
+	if !strings.HasPrefix(rawURL, mcl.MSAAuthURL) {
 		t.Errorf("the login url is %q", rawURL)
 	}
 
@@ -29,13 +31,13 @@ func TestLoginURL(t *testing.T) {
 	if query.Get("response_type") != "code" {
 		t.Errorf("the response type is %q", query.Get("response_type"))
 	}
-	if query.Get("scope") != MSAScope {
+	if query.Get("scope") != mcl.MSAScope {
 		t.Errorf("the scope is %q", query.Get("scope"))
 	}
 }
 
 func TestSecureLoginData(t *testing.T) {
-	data := SecureLoginData("client-id", "http://localhost:8080", "")
+	data := mcl.SecureLoginData("client-id", "http://localhost:8080", "")
 	if data.State == "" {
 		t.Error("the state should be generated")
 	}
@@ -63,7 +65,7 @@ func TestSecureLoginData(t *testing.T) {
 }
 
 func TestSecureLoginDataKeepsTheState(t *testing.T) {
-	data := SecureLoginData("client-id", "http://localhost:8080", "my-state")
+	data := mcl.SecureLoginData("client-id", "http://localhost:8080", "my-state")
 	if data.State != "my-state" {
 		t.Errorf("the state is %q, want my-state", data.State)
 	}
@@ -72,18 +74,18 @@ func TestSecureLoginDataKeepsTheState(t *testing.T) {
 func TestAuthCodeFromURL(t *testing.T) {
 	rawURL := "http://localhost:8080/?code=the-code&state=the-state"
 
-	if !URLContainsAuthCode(rawURL) {
+	if !mcl.URLContainsAuthCode(rawURL) {
 		t.Error("the url should contain an authorization code")
 	}
-	code, ok := AuthCodeFromURL(rawURL)
+	code, ok := mcl.AuthCodeFromURL(rawURL)
 	if !ok || code != "the-code" {
 		t.Errorf("the code is %q", code)
 	}
 
-	if URLContainsAuthCode("http://localhost:8080/?state=the-state") {
+	if mcl.URLContainsAuthCode("http://localhost:8080/?state=the-state") {
 		t.Error("the url should not contain an authorization code")
 	}
-	if _, ok := AuthCodeFromURL("http://localhost:8080/?state=the-state"); ok {
+	if _, ok := mcl.AuthCodeFromURL("http://localhost:8080/?state=the-state"); ok {
 		t.Error("the url should not contain an authorization code")
 	}
 }
@@ -91,7 +93,7 @@ func TestAuthCodeFromURL(t *testing.T) {
 func TestParseAuthCodeURL(t *testing.T) {
 	rawURL := "http://localhost:8080/?code=the-code&state=the-state"
 
-	code, err := ParseAuthCodeURL(rawURL, "the-state")
+	code, err := mcl.ParseAuthCodeURL(rawURL, "the-state")
 	if err != nil {
 		t.Fatalf("ParseAuthCodeURL: %v", err)
 	}
@@ -99,17 +101,17 @@ func TestParseAuthCodeURL(t *testing.T) {
 		t.Errorf("the code is %q", code)
 	}
 
-	if _, err := ParseAuthCodeURL(rawURL, "another-state"); err == nil {
+	if _, err := mcl.ParseAuthCodeURL(rawURL, "another-state"); err == nil {
 		t.Error("ParseAuthCodeURL should refuse a wrong state")
 	}
-	if _, err := ParseAuthCodeURL("http://localhost:8080/?state=the-state", "the-state"); err == nil {
+	if _, err := mcl.ParseAuthCodeURL("http://localhost:8080/?state=the-state", "the-state"); err == nil {
 		t.Error("ParseAuthCodeURL should fail without a code")
 	}
 }
 
 func TestGenerateState(t *testing.T) {
-	first := GenerateState()
-	second := GenerateState()
+	first := mcl.GenerateState()
+	second := mcl.GenerateState()
 	if first == "" || second == "" {
 		t.Fatal("the state should not be empty")
 	}
