@@ -123,10 +123,12 @@ func (l *launcher) installAndLaunch(ctx context.Context, username, loaderName, m
 			}
 			version = installed
 		}
-	} else if loaderName != "Custom" && !l.isInstalled(minecraftVersion) {
-		if err := mcl.Install(ctx, minecraftVersion, l.minecraftDirectory, l.newProgress()); err != nil {
-			return nil, err
-		}
+	}
+
+	// Install verifies existing files and repairs anything missing before
+	// building a command that would otherwise start and fail at runtime.
+	if err := mcl.Install(ctx, version, l.minecraftDirectory, l.newProgress()); err != nil {
+		return nil, err
 	}
 
 	// The UUID and the token are optional. The game runs offline when there
