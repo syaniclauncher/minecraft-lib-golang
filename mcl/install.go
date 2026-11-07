@@ -28,11 +28,16 @@ var LibrariesURL = "https://libraries.minecraft.net"
 // corrupted files are downloaded. The version must either be installed
 // already or be offered by Mojang.
 //
+// An .incomplete marker is kept in the version directory until installation
+// succeeds, so interrupted installations are not reported as installed.
+//
 // The progress argument may be nil.
 func Install(ctx context.Context, version, minecraftDirectory string, progress *Progress) error {
 	versionPath := filepath.Join(minecraftDirectory, "versions", version, version+".json")
 	if _, err := os.Stat(versionPath); err == nil {
-		return installVersion(ctx, version, minecraftDirectory, "", "", progress)
+		return withIncomplete(minecraftDirectory, version, func() error {
+			return installVersion(ctx, version, minecraftDirectory, "", "", progress)
+		})
 	}
 
 	manifest, err := Manifest(ctx)
@@ -41,10 +46,29 @@ func Install(ctx context.Context, version, minecraftDirectory string, progress *
 	}
 	for _, v := range manifest.Versions {
 		if v.ID == version {
-			return installVersion(ctx, version, minecraftDirectory, v.URL, v.SHA1, progress)
+			return withIncomplete(minecraftDirectory, version, func() error {
+				return installVersion(ctx, version, minecraftDirectory, v.URL, v.SHA1, progress)
+			})
 		}
 	}
 	return fmt.Errorf("%w: %s", ErrVersionNotFound, version)
+}
+
+func withIncomplete(minecraftDirectory, version string, install func() error) error {
+	markerPath := filepath.Join(minecraftDirectory, "versions", version, ".incomplete")
+	if err := checkPathInsideMinecraftDirectory(minecraftDirectory, markerPath); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(markerPath), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(markerPath, nil, 0o644); err != nil {
+		return err
+	}
+	if err := install(); err != nil {
+		return err
+	}
+	return os.Remove(markerPath)
 }
 
 // installVersion installs a single version. When url is not empty the

@@ -80,6 +80,11 @@ func TestInstalledVersions(t *testing.T) {
 		"type": "release",
 		"releaseTime": "2023-06-12T13:25:51+00:00"
 	}`)
+	writeFile(t, filepath.Join(dir, "versions", "incomplete", "incomplete.json"), `{
+		"id": "incomplete",
+		"type": "release"
+	}`)
+	writeFile(t, filepath.Join(dir, "versions", "incomplete", ".incomplete"), "")
 	// A directory without a client.json is not a version.
 	if err := os.MkdirAll(filepath.Join(dir, "versions", "broken"), 0o755); err != nil {
 		t.Fatal(err)

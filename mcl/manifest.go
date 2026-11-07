@@ -252,7 +252,7 @@ func VersionList(ctx context.Context) ([]VersionInfo, error) {
 }
 
 // InstalledVersions returns the versions that are installed in the given
-// Minecraft directory.
+// Minecraft directory. Versions with an .incomplete marker are omitted.
 func InstalledVersions(minecraftDirectory string) ([]VersionInfo, error) {
 	entries, err := os.ReadDir(filepath.Join(minecraftDirectory, "versions"))
 	if err != nil {
@@ -266,6 +266,11 @@ func InstalledVersions(minecraftDirectory string) ([]VersionInfo, error) {
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
+		}
+		if _, err := os.Stat(filepath.Join(minecraftDirectory, "versions", entry.Name(), ".incomplete")); err == nil {
+			continue
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("check incomplete marker for %s: %w", entry.Name(), err)
 		}
 		data, err := readClientJSONFile(minecraftDirectory, entry.Name())
 		if err != nil {

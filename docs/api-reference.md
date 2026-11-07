@@ -24,6 +24,11 @@ func IsVanillaVersion(ctx context.Context, version string) (bool, error)
 func IsMinecraftInstalled(minecraftDirectory string) bool
 ```
 
+`InstalledVersions` omits any version directory containing an `.incomplete`
+marker. `Install` and modloader installation keep this marker until the
+installation succeeds; after a failed or interrupted installation it remains
+so the version is not reported as complete.
+
 ## Installing
 
 ```go

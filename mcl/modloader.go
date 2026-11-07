@@ -113,16 +113,17 @@ func installModLoader(
 		}
 	}
 
-	if err := Install(ctx, minecraftVersion, minecraftDirectory, opts.Progress); err != nil {
-		return "", err
-	}
-
-	if err := installLoader(ctx, loaderVersion); err != nil {
-		return "", err
-	}
-
 	installedVersion := loader.InstalledVersion(minecraftVersion, loaderVersion)
-	if err := Install(ctx, installedVersion, minecraftDirectory, opts.Progress); err != nil {
+	err = withIncomplete(minecraftDirectory, installedVersion, func() error {
+		if err := Install(ctx, minecraftVersion, minecraftDirectory, opts.Progress); err != nil {
+			return err
+		}
+		if err := installLoader(ctx, loaderVersion); err != nil {
+			return err
+		}
+		return installVersion(ctx, installedVersion, minecraftDirectory, "", "", opts.Progress)
+	})
+	if err != nil {
 		return "", err
 	}
 	return installedVersion, nil

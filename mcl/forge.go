@@ -239,7 +239,7 @@ func (l forgeModLoader) installForge(ctx context.Context, minecraftVersion, load
 	// checked against the Minecraft directory.
 	_ = extractFileFromZip(reader, "data/client.lzma", lzmaPath, "")
 
-	if err := Install(ctx, forgeVersionID, minecraftDirectory, opts.Progress); err != nil {
+	if err := installVersion(ctx, forgeVersionID, minecraftDirectory, "", "", opts.Progress); err != nil {
 		return err
 	}
 
