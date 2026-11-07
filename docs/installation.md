@@ -42,3 +42,20 @@ Run it with:
 ```bash
 go run .
 ```
+
+## Skipping verification and repair
+
+`Install` verifies an existing installation and downloads missing or corrupted
+files. To skip that work for an already-installed version, use
+`InstallWithOptions`:
+
+```go
+err := mcl.InstallWithOptions(ctx, "1.21", directory, mcl.MinecraftInstallOptions{
+	SkipChecks: true,
+})
+```
+
+`SkipChecks` only applies when the version metadata is already present; fresh
+installations are still installed. Use it only when you know the version's
+runtime, assets and libraries are complete, since missing files will not be
+repaired.

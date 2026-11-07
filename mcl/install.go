@@ -33,11 +33,40 @@ var LibrariesURL = "https://libraries.minecraft.net"
 //
 // The progress argument may be nil.
 func Install(ctx context.Context, version, minecraftDirectory string, progress *Progress) error {
+	return InstallWithOptions(ctx, version, minecraftDirectory, MinecraftInstallOptions{
+		Progress: progress,
+	})
+}
+
+// MinecraftInstallOptions configures a Minecraft version installation.
+type MinecraftInstallOptions struct {
+	// Progress receives the installation progress. It may be nil.
+	Progress *Progress
+	// SkipChecks skips verification and repair when the version metadata is
+	// already installed. It has no effect on a fresh installation.
+	SkipChecks bool
+}
+
+// InstallWithOptions installs a Minecraft version into the given directory.
+//
+// It verifies and repairs an existing installation unless SkipChecks is set.
+// The version must either be installed already or be offered by Mojang.
+//
+// An .incomplete marker is kept in the version directory until installation
+// succeeds, so interrupted installations are not reported as installed.
+func InstallWithOptions(ctx context.Context, version, minecraftDirectory string, opts MinecraftInstallOptions) error {
 	versionPath := filepath.Join(minecraftDirectory, "versions", version, version+".json")
-	if _, err := os.Stat(versionPath); err == nil {
+	info, err := os.Stat(versionPath)
+	if err == nil {
+		if opts.SkipChecks && !info.IsDir() {
+			return nil
+		}
 		return withIncomplete(minecraftDirectory, version, func() error {
-			return installVersion(ctx, version, minecraftDirectory, "", "", progress)
+			return installVersion(ctx, version, minecraftDirectory, "", "", opts.Progress)
 		})
+	}
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("stat %s: %w", versionPath, err)
 	}
 
 	manifest, err := Manifest(ctx)
@@ -47,7 +76,7 @@ func Install(ctx context.Context, version, minecraftDirectory string, progress *
 	for _, v := range manifest.Versions {
 		if v.ID == version {
 			return withIncomplete(minecraftDirectory, version, func() error {
-				return installVersion(ctx, version, minecraftDirectory, v.URL, v.SHA1, progress)
+				return installVersion(ctx, version, minecraftDirectory, v.URL, v.SHA1, opts.Progress)
 			})
 		}
 	}

@@ -33,6 +33,11 @@ so the version is not reported as complete.
 
 ```go
 func Install(ctx context.Context, version, minecraftDirectory string, progress *Progress) error
+func InstallWithOptions(ctx context.Context, version, minecraftDirectory string, opts MinecraftInstallOptions) error
+type MinecraftInstallOptions struct {
+	Progress *Progress
+	SkipChecks bool
+}
 func InstallJVMRuntime(ctx context.Context, majorVersion int, minecraftDirectory string, progress *Progress) error
 func ExtractNatives(version, minecraftDirectory, extractPath string) error
 func TemurinExecutablePath(majorVersion int, minecraftDirectory string) string
@@ -41,6 +46,10 @@ func InstalledJVMRuntimes(minecraftDirectory string) ([]string, error)
 func JVMRuntimeInformation(ctx context.Context, jvmVersion string) (JVMRuntime, error)
 func VersionRuntimeInformation(version, minecraftDirectory string) (*VersionRuntime, error)
 ```
+
+`Install` verifies and repairs existing files. `InstallWithOptions` offers the
+same behavior, with `SkipChecks` to skip verification and repair when version
+metadata already exists. See [Installation](installation.md).
 
 ## Launching
 

@@ -1,11 +1,32 @@
 package mcl
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestInstallWithOptionsSkipsChecks(t *testing.T) {
+	dir := t.TempDir()
+	versionPath := filepath.Join(dir, "versions", "1.20.1", "1.20.1.json")
+	if err := os.MkdirAll(filepath.Dir(versionPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(versionPath, []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := InstallWithOptions(context.Background(), "1.20.1", dir, MinecraftInstallOptions{
+		SkipChecks: true,
+	}); err != nil {
+		t.Fatalf("InstallWithOptions: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "versions", "1.20.1", ".incomplete")); !os.IsNotExist(err) {
+		t.Errorf("incomplete marker exists after skipping checks: %v", err)
+	}
+}
 
 func TestWithIncomplete(t *testing.T) {
 	dir := t.TempDir()
