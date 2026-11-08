@@ -40,7 +40,26 @@ It is the same UUID the official launcher uses for such a player i.e. an MD5-bas
 | --- | --- |
 | `ExecutablePath` | The Java executable to run. It wins over everything else. |
 | `DefaultExecutablePath` | The Java executable to run when `ExecutablePath` is empty and the version has no embedded runtime. |
-| `JVMArguments` | Arguments that are put in front of the arguments of the game, for example `[]string{"-Xmx2G"}`. |
+| `JVMArguments` | Java arguments that are put before the game's arguments. Each slice element is passed as one argument, for example `[]string{"-Xmx2G"}`. |
+
+Pass one argument per slice element; do not combine arguments into a
+space-separated string or add shell quotes. Spaces in an argument are kept as
+is, so a `-javaagent` option whose JAR path contains spaces should be one
+element:
+
+```go
+JVMArguments: []string{
+	"-Xms1G",
+	"-Xmx4G",
+	"-Dfile.encoding=UTF-8",
+	"-XX:+UseG1GC",
+	`-javaagent:C:\path with spaces\agent.jar=option`,
+},
+```
+
+Each flag and its value stays in a single slice element (for example,
+`-Dname=value`). The raw Go string literal keeps Windows path backslashes
+unchanged. Replace the example agent path and option as needed.
 
 Without both paths the game runs with the Temurin runtime that was installed
 next to the Minecraft directory. That runtime matches the Java version the

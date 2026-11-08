@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -333,7 +334,10 @@ func hint(text string) *widget.RichText {
 //
 // The memory is given in megabytes. The game decides when it is empty.
 func (l *launcher) javaArguments() ([]string, error) {
-	arguments := strings.Fields(l.jvmArguments.Text)
+	arguments, err := parseJVMArguments(l.jvmArguments.Text)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, memory := range []struct {
 		name  string
@@ -353,6 +357,36 @@ func (l *launcher) javaArguments() ([]string, error) {
 		}
 		// The lower case m is the megabyte of the Java virtual machine.
 		arguments = append(arguments, memory.flag+strconv.Itoa(size)+"m")
+	}
+	return arguments, nil
+}
+
+func parseJVMArguments(text string) ([]string, error) {
+	var arguments []string
+	var argument strings.Builder
+	quoted, started := false, false
+
+	for _, character := range text {
+		switch {
+		case character == '"':
+			quoted = !quoted
+			started = true
+		case unicode.IsSpace(character) && !quoted:
+			if started {
+				arguments = append(arguments, argument.String())
+				argument.Reset()
+				started = false
+			}
+		default:
+			argument.WriteRune(character)
+			started = true
+		}
+	}
+	if quoted {
+		return nil, fmt.Errorf("unmatched double quote in JVM arguments")
+	}
+	if started {
+		arguments = append(arguments, argument.String())
 	}
 	return arguments, nil
 }
